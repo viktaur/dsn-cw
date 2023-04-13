@@ -1,11 +1,17 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.Buffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class Controller {
+    protected static final HashSet<Socket> activeClients = new HashSet<>();
+    protected static final HashMap<Socket, ArrayList<File>> index = new HashMap<>();
+
     public static void main(String[] args) {
         final int cport = Integer.parseInt(args[0]);
         final int r = Integer.parseInt(args[1]);
@@ -15,10 +21,18 @@ public class Controller {
         ServerSocket ss = null;
         try {
             ss = new ServerSocket(cport);
-            while(true) {
+            while (true) {
                 try {
-                    Socket dstore = ss.accept();
-                    new Thread(new ServiceThread(dstore)).start();
+                    // a socket will be created whenever a new Client / Dstore requests to make a connection
+                    Socket socket = ss.accept();
+                    // we will start a new thread for each client
+
+                    try {
+                        startThread(socket);
+                    } catch (Exception e) {
+                        System.err.println(e);
+                    }
+
                 } catch (Exception e) {
                     System.err.println("error: " + e);
                 }
@@ -36,27 +50,83 @@ public class Controller {
         }
     }
 
-    static class ServiceThread implements Runnable {
+    public static void startThread(Socket socket) throws IOException {
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        String firstMessage = in.readLine();
+        if (firstMessage.startsWith("JOIN")) {
+            int port = Integer.parseInt(firstMessage.split(" ")[1]);
+            new Thread(new DstoreThread(socket, port)).start();
+        } else {
+            new Thread(new ClientThread(socket)).start();
+        }
+    }
 
-        private final Socket client;
 
-        public ServiceThread(Socket client) {
-            this.client = client;
+    static class DstoreThread implements Runnable {
+        private final Socket dstoreSocket;
+        private final int port;
+
+        public DstoreThread(Socket dstoreSocket, int port) {
+            this.dstoreSocket = dstoreSocket;
+            this.port = port;
         }
 
         @Override
         public void run() {
+            synchronized (index) {
+                index.put(dstoreSocket, new ArrayList<>());
+            }
+
             try {
-                BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                System.out.println("New Dstore thread created. Its port is " + port);
+                BufferedReader in = new BufferedReader(new InputStreamReader(dstoreSocket.getInputStream()));
                 String line;
-                while((line = in.readLine()) != null) {
+                while (dstoreSocket.isConnected()) {
+                    line = in.readLine();
+                    // handle each Dstore operations with if/else statements.
+                }
+
+                dstoreSocket.close();
+
+                synchronized (index) {
+                    index.remove(dstoreSocket);
+                }
+            } catch (Exception e) {
+                System.err.println(e);
+            }
+        }
+    }
+
+    static class ClientThread implements Runnable {
+
+        private final Socket clientSocket;
+
+        public ClientThread(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+        }
+
+        @Override
+        public void run() {
+            synchronized (activeClients) {
+                activeClients.add(clientSocket);
+            }
+
+            try {
+                System.out.println("New thread created");
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                String line;
+                while ((line = in.readLine()) != null) {
                     System.out.println(line + " received");
                 }
-                client.close();
+                clientSocket.close();
+
+                synchronized (activeClients) {
+                    activeClients.remove(clientSocket);
+                }
+
             } catch (Exception e) {
                 System.err.println("error: " + e);
             }
         }
     }
-
 }
