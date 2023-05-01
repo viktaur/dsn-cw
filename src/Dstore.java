@@ -6,9 +6,17 @@ import java.net.Socket;
 public class Dstore {
 
     public static void main(String[] args) {
-        final int port = Integer.parseInt(args[0]); // port to listen on
-        final int cport = Integer.parseInt(args[1]); // controller's port
+
+        // Port on which the Dstore will listen to
+        final int port = Integer.parseInt(args[0]);
+
+        // Controller's port
+        final int cport = Integer.parseInt(args[1]);
+
+        // How long to wait (in seconds) when a process expects a response from another process
         final int timeout = Integer.parseInt(args[2]);
+
+        // Where to store the data locally
         final String fileFolder = args[3];
 
         Socket socket = null;
