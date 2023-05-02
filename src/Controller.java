@@ -1,36 +1,30 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Controller {
 
     /**
-     * Set consisting of the sockets representing the current active clients (excluding dstores)
+     * Set consisting of the threads representing the current active clients (excluding dstores)
      */
-    protected static final HashSet<Socket> activeClients = new HashSet<>();
+    protected static final HashSet<ClientThread> activeClients = new HashSet<>();
 
     /**
-     * Map linking an active Dstore with the list of files it's storing
+     * Set consisting of the threads representing the current active dstores
      */
-    protected static final ConcurrentHashMap<Socket, ArrayList<File>> index = new ConcurrentHashMap<>();
-    // might need to be ArrayList<ConcurrentHashMap<File, Status>> instead
+    protected static final ConcurrentHashMap<DstoreThread,ConcurrentHashMap<File, FileStatus>> index = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
 
-        // Port at which the server socket will be listening for incoming client connections
+        // Port at which the server socket will be listening for incoming client and dstore connections
         final int cport = Integer.parseInt(args[0]);
 
         // Replication factor: number of times a file is replicated over different dstores
         final int r = Integer.parseInt(args[1]);
 
-        // How long to wait (in seconds) when a process expects a response from another process
+        // How long to wait (in ms) when a process expects a response from another process
         final int timeout = Integer.parseInt(args[2]);
 
         // How long to wait (in seconds) to start the rebalance operation
@@ -47,13 +41,8 @@ public class Controller {
                     // a socket will be created whenever a new Client / Dstore requests to make a connection
                     Socket socket = ss.accept();
 
-                    // we will start a new thread for each client
-                    try {
-                        startThread(socket);
-                    } catch (Exception e) {
-                        System.err.println(e);
-                    }
-
+                    // we will start a new thread for each client or dstore
+                    startThread(socket);
                 } catch (Exception e) {
                     System.err.println("error: " + e);
                 }
@@ -73,17 +62,81 @@ public class Controller {
 
     /**
      * Creates a new Dstore or Client thread depending on the first message sent
-     * @param socket represents the client connection
+     * @param socket represents the connection with the client or dstore
      * @throws IOException
      */
     public static void startThread(Socket socket) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         String firstMessage = in.readLine();
+        System.out.println("First message is: " + firstMessage);
         if (firstMessage.startsWith(Protocol.JOIN_TOKEN)) {
             int port = Integer.parseInt(firstMessage.split(" ")[1]);
             new Thread(new DstoreThread(socket, port)).start();
         } else {
             new Thread(new ClientThread(socket)).start();
+        }
+    }
+
+    static class ClientThread implements Runnable {
+
+        private final Socket clientSocket;
+
+        public ClientThread(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+        }
+
+        @Override
+        public void run() {
+            synchronized (activeClients) {
+                activeClients.add(this);
+                System.out.println(this + " added to activeClients");
+            }
+
+            try {
+                System.out.println("New thread created");
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+
+                String line;
+
+                while ((line = in.readLine()) != null) {
+                    System.out.println("Received from a client: ");
+
+                    try {
+                        handleMessage(line, out);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                clientSocket.close();
+
+                synchronized (activeClients) {
+                    activeClients.remove(this);
+                    System.out.println(this + " removed from activeClients");
+                }
+
+            } catch (Exception e) {
+                System.err.println("error: " + e);
+            }
+        }
+
+        private void handleMessage(String line, PrintWriter out) throws Exception {
+            if (line.startsWith(Protocol.STORE_TOKEN)) {
+                String fileName = line.split(" ")[1];
+                int fileSize = Integer.parseInt(line.split(" ")[2]);
+
+            } else if (line.startsWith(Protocol.LOAD_TOKEN)) {
+                String fileName = line.split(" ")[1];
+
+            } else if (line.startsWith(Protocol.REMOVE_TOKEN)) {
+                String fileName = line.split(" ")[1];
+
+            } else if (line.equals(Protocol.LIST_TOKEN)) {
+
+            } else {
+                throw new Exception("Could not handle the message");
+            }
         }
     }
 
@@ -99,24 +152,24 @@ public class Controller {
 
         @Override
         public void run() {
-            synchronized (index) {
-                index.put(dstoreSocket, new ArrayList<>());
-            }
+            index.put(this, new ConcurrentHashMap<>());
+            System.out.println(this + " added to index");
 
             try {
                 System.out.println("New Dstore thread created. Its port is " + port);
                 BufferedReader in = new BufferedReader(new InputStreamReader(dstoreSocket.getInputStream()));
                 String line;
-                while (dstoreSocket.isConnected()) {
-                    line = in.readLine();
+
+                while ((line = in.readLine()) != null) {
+                    System.out.println("Received from a dstore: " + line);
+
                     // handle each Dstore operations with if/else statements.
                 }
 
                 dstoreSocket.close();
 
-                synchronized (index) {
-                    index.remove(dstoreSocket);
-                }
+                index.remove(this);
+                System.out.println(this + " removed from index");
 
             } catch (Exception e) {
                 System.err.println(e);
@@ -124,36 +177,10 @@ public class Controller {
         }
     }
 
-    static class ClientThread implements Runnable {
-
-        private final Socket clientSocket;
-
-        public ClientThread(Socket clientSocket) {
-            this.clientSocket = clientSocket;
-        }
-
-        @Override
-        public void run() {
-            synchronized (activeClients) {
-                activeClients.add(clientSocket);
-            }
-
-            try {
-                System.out.println("New thread created");
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                String line;
-                while ((line = in.readLine()) != null) {
-                    System.out.println(line + " received");
-                }
-                clientSocket.close();
-
-                synchronized (activeClients) {
-                    activeClients.remove(clientSocket);
-                }
-
-            } catch (Exception e) {
-                System.err.println("error: " + e);
-            }
-        }
+    enum FileStatus {
+        STORE_IN_PROGRESS,
+        STORE_COMPLETE,
+        REMOVE_IN_PROGRESS,
+        REMOVE_COMPLETE
     }
 }
