@@ -1,7 +1,11 @@
+import javax.print.attribute.HashAttributeSet;
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Controller {
@@ -14,7 +18,12 @@ public class Controller {
     /**
      * Set consisting of the threads representing the current active dstores
      */
-    protected static final ConcurrentHashMap<DstoreThread,ConcurrentHashMap<File, FileStatus>> index = new ConcurrentHashMap<>();
+    protected static final HashSet<DstoreThread> activeDstores = new HashSet<>();
+
+    /**
+     * Set mapping each file with its properties (size, status, and dstores that have it)
+     */
+    protected static final ConcurrentHashMap<File, FileProperties> index = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
 
@@ -89,8 +98,8 @@ public class Controller {
         public void run() {
             synchronized (activeClients) {
                 activeClients.add(this);
-                System.out.println(this + " added to activeClients");
             }
+            System.out.println(this + " added to activeClients");
 
             try {
                 System.out.println("New thread created");
@@ -103,7 +112,7 @@ public class Controller {
                     System.out.println("Received from a client: ");
 
                     try {
-                        handleMessage(line, out);
+                        handleMessage(line, in, out);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -113,30 +122,79 @@ public class Controller {
 
                 synchronized (activeClients) {
                     activeClients.remove(this);
-                    System.out.println(this + " removed from activeClients");
                 }
+                System.out.println(this + " removed from activeClients");
 
             } catch (Exception e) {
                 System.err.println("error: " + e);
             }
         }
 
-        private void handleMessage(String line, PrintWriter out) throws Exception {
+        private void handleMessage(String line, BufferedReader in, PrintWriter out) throws Exception {
             if (line.startsWith(Protocol.STORE_TOKEN)) {
-                String fileName = line.split(" ")[1];
-                int fileSize = Integer.parseInt(line.split(" ")[2]);
-
+                storeOp(line, out);
             } else if (line.startsWith(Protocol.LOAD_TOKEN)) {
-                String fileName = line.split(" ")[1];
-
+                loadOp(line, out);
             } else if (line.startsWith(Protocol.REMOVE_TOKEN)) {
-                String fileName = line.split(" ")[1];
-
+                removeOp(line, in, out);
             } else if (line.equals(Protocol.LIST_TOKEN)) {
-
+                listOp(line, out);
             } else {
                 throw new Exception("Could not handle the message");
             }
+        }
+
+        private void storeOp(String line, PrintWriter out) {
+            String fileName = line.split(" ")[1];
+            int fileSize = Integer.parseInt(line.split(" ")[2]);
+
+            File file = new File(fileName); // TODO: Check paths and folder structure
+            StringBuilder ports = new StringBuilder();
+
+            for (DstoreThread dstore : index.get(file).getDstores()) {
+                ports.append(dstore.getPort()).append(" ");
+            }
+
+            out.println(Protocol.STORE_TO_TOKEN + " " + ports);
+            System.out.println("Sending: STORE TO " + " " + ports);
+
+
+        }
+
+        public void loadOp(String line, PrintWriter out) {
+            String fileName = line.split(" ")[1];
+            File file = new File(fileName);
+            int fileSize = index.get(file).getFileSize();
+
+            for (DstoreThread dstore : index.get(file).getDstores()) {
+                int dstorePort = dstore.getPort();
+                out.println(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
+
+                // if success
+                break;
+            }
+        }
+
+        public void removeOp(String line, BufferedReader in, PrintWriter out) {
+            String fileName = line.split(" ")[1];
+
+            // get all the dstores
+
+            // communicate with each DstoreThread and tell them to remove the file
+
+            // tell the client the remove op is complete
+            out.println(Protocol.REMOVE_COMPLETE_TOKEN);
+        }
+
+        public void listOp(String line, PrintWriter out) {
+            StringBuilder fileList = new StringBuilder();
+
+            for (File file : index.keySet()) {
+                fileList.append(file.getName()).append(" ");
+            }
+
+            out.println(Protocol.LIST_TOKEN + " " + fileList);
+            System.out.println("Sending: " + Protocol.LIST_TOKEN + " " + fileList);
         }
     }
 
@@ -150,10 +208,21 @@ public class Controller {
             this.port = port;
         }
 
+        public Socket getDstoreSocket() {
+            return dstoreSocket;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
         @Override
         public void run() {
-            index.put(this, new ConcurrentHashMap<>());
-            System.out.println(this + " added to index");
+            synchronized (activeDstores) {
+                activeDstores.add(this);
+            }
+            System.out.println(this + " added to activeDstores");
+
 
             try {
                 System.out.println("New Dstore thread created. Its port is " + port);
@@ -168,8 +237,10 @@ public class Controller {
 
                 dstoreSocket.close();
 
-                index.remove(this);
-                System.out.println(this + " removed from index");
+                synchronized (activeDstores) {
+                    activeDstores.remove(this);
+                }
+                System.out.println(this + " removed from activeDstores");
 
             } catch (Exception e) {
                 System.err.println(e);
@@ -177,10 +248,51 @@ public class Controller {
         }
     }
 
-    enum FileStatus {
-        STORE_IN_PROGRESS,
-        STORE_COMPLETE,
-        REMOVE_IN_PROGRESS,
-        REMOVE_COMPLETE
+    static class FileProperties {
+
+        private final int fileSize;
+        private FileStatus status;
+        private ArrayList<DstoreThread> dstores;
+
+        public FileProperties(int fileSize, FileStatus status, ArrayList<DstoreThread> dstores) {
+            this.fileSize = fileSize;
+            this.status = status;
+            this.dstores = dstores;
+        }
+
+        enum FileStatus {
+            STORE_IN_PROGRESS,
+            STORE_COMPLETE,
+            REMOVE_IN_PROGRESS,
+            REMOVE_COMPLETE
+        }
+
+        public int getFileSize() {
+            return fileSize;
+        }
+
+        public FileStatus getStatus() {
+            return status;
+        }
+
+        public void setStatus(FileStatus status) {
+            this.status = status;
+        }
+
+        public ArrayList<DstoreThread> getDstores() {
+            return dstores;
+        }
+
+        public boolean addDstore(DstoreThread dstore) {
+            return this.dstores.add(dstore);
+        }
+
+        public boolean removeDstore(DstoreThread dstore) {
+            return this.dstores.remove(dstore);
+        }
+
+        public int getCount() {
+            return dstores.size();
+        }
     }
 }
