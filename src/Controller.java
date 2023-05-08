@@ -1,298 +1,228 @@
-import javax.print.attribute.HashAttributeSet;
-import java.io.*;
-import java.lang.reflect.Array;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 public class Controller {
 
     /**
-     * Set consisting of the threads representing the current active clients (excluding dstores)
+     * Set consisting of the active threads that are listening to dstores
      */
-    protected static final HashSet<ClientThread> activeClients = new HashSet<>();
-
-    /**
-     * Set consisting of the threads representing the current active dstores
-     */
-    protected static final HashSet<DstoreThread> activeDstores = new HashSet<>();
+    protected static final HashSet<NetworkController.DstoreThread> activeDstores = new HashSet<>();
 
     /**
      * Set mapping each file with its properties (size, status, and dstores that have it)
      */
-    protected static final ConcurrentHashMap<File, FileProperties> index = new ConcurrentHashMap<>();
+    protected static final ConcurrentHashMap<String, FileProperties> index = new ConcurrentHashMap<>();
+
+    /**
+     * Port at which the server socket will be listening for incoming client and dstore connections
+     */
+    protected static int cport;
+
+    /**
+     * Replication factor: number of times a file is replicated over different dstores
+     */
+    protected static int r;
+
+    /**
+     * How long to wait (in ms) when a process expects a response from another process
+     */
+    protected static int timeout;
+
+    /**
+     * How long to wait (in seconds) to start the rebalance operation
+     */
+    protected static int rebalancePeriod;
+
+    /**
+     * Messages received from the connection threads that need to be handled
+     */
+    protected static final ConcurrentLinkedQueue<Message> tasks = new ConcurrentLinkedQueue<>();
+
+    /**
+     * Store operations that have not yet been completed
+     */
+    protected static final HashMap<Message, CountDownLatch> currentStoreOps = new HashMap<>();
+
+    /**
+     * Load operations that have not yet been completed
+     */
+    protected static final HashMap<Message, Integer> currentLoadOps = new HashMap<>();
+
+    /**
+     * Remove operations that have not yet been completed
+     */
+    protected static final HashMap<Message, CountDownLatch> currentRemoveOps = new HashMap<>();
 
     public static void main(String[] args) {
 
-        // Port at which the server socket will be listening for incoming client and dstore connections
-        final int cport = Integer.parseInt(args[0]);
+        cport = Integer.parseInt(args[0]);
+        r = Integer.parseInt(args[1]);
+        timeout = Integer.parseInt(args[2]);
+        rebalancePeriod = Integer.parseInt(args[3]);
 
-        // Replication factor: number of times a file is replicated over different dstores
-        final int r = Integer.parseInt(args[1]);
+        // We start a thread that will constantly listen to all incoming connections
+        Thread incomingConnections = new Thread(new NetworkController(cport, tasks));
+        incomingConnections.start();
 
-        // How long to wait (in ms) when a process expects a response from another process
-        final int timeout = Integer.parseInt(args[2]);
+        // This is the main execution loop
+        while (true) {
+            Message msgInfo = tasks.poll();
 
-        // How long to wait (in seconds) to start the rebalance operation
-        final int rebalancePeriod = Integer.parseInt(args[3]);
+            if (msgInfo != null) {
 
-        ServerSocket ss = null;
+                try {
+                    handleMessage(msgInfo);
+                } catch (Exception e) {
+                    System.err.println("Could not handle message: " + e);
+                }
+            }
+        }
+    }
+    private static void handleMessage(Message msg) throws Exception {
+
+        if (msg.getContent().startsWith(Protocol.STORE_TOKEN)) {
+            storeOp(msg);
+        } else if (msg.getContent().startsWith(Protocol.LOAD_TOKEN)) {
+            loadOp(msg, 0);
+        } else if (msg.getContent().startsWith(Protocol.REMOVE_TOKEN)) {
+            removeOp(msg);
+        } else if (msg.getContent().equals(Protocol.LIST_TOKEN)) {
+            listOp(msg);
+        } else if (msg.getContent().startsWith(Protocol.STORE_ACK_TOKEN)) {
+            handleStoreAck(msg);
+        } else if (msg.getContent().startsWith(Protocol.RELOAD_TOKEN)) {
+            handleReload(msg);
+        } else if (msg.getContent().startsWith(Protocol.REMOVE_ACK_TOKEN)) {
+            handleRemoveAck(msg);
+        } else {
+            throw new Exception("Unknown operation token");
+        }
+    }
+
+    private static void storeOp(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+        int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
+
+        index.put(fileName, new FileProperties(fileSize, FileProperties.FileStatus.STORE_IN_PROGRESS, new ArrayList<>()));
+
+        StringBuilder ports = new StringBuilder();
+
+        // get the first r active dstores
+        for (NetworkController.DstoreThread dstore : activeDstores.stream().limit(r).toList()) {
+            ports.append(dstore.getPort()).append(" ");
+        }
+
+        // send the ports of those dstores to the client
+        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
+
+        // handle acks
+        currentStoreOps.put(msg, new CountDownLatch(r));
+    }
+
+    public static void loadOp(Message msg, Integer i) {
+        String fileName = msg.getContent().split(" ")[1];
+        FileProperties fp = index.get(fileName);
+        int fileSize = fp.getFileSize();
+
+        int dstorePort = fp.getDstores().get(i).getPort();
+        msg.getSender().communicate(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
+
+        // in case dstore 0 fails, we will try with 1
+        currentLoadOps.put(msg, i+1);
+    }
+
+
+    public static void removeOp(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+
+        // get all the dstores
+        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
+            dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
+        }
+
+        currentRemoveOps.put(msg, new CountDownLatch(r));
+    }
+
+    public static void listOp(Message msg) {
+        StringBuilder fileList = new StringBuilder();
+
+        for (String fileName : index.keySet()) {
+            fileList.append(fileName).append(" ");
+        }
+
+        msg.getSender().communicate(Protocol.LIST_TOKEN + " " + fileList);
+    }
+
+    public static void handleStoreAck(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
 
         try {
-            ss = new ServerSocket(cport);
 
-            // we are constantly accepting new connections
-            while (true) {
-                try {
-                    // a socket will be created whenever a new Client / Dstore requests to make a connection
-                    Socket socket = ss.accept();
+            boolean found = false;
+            // this for loop looks for the fileName in a current STORE op.
+            for (Message opMsg : currentStoreOps.keySet()) {
+                String opFileName = opMsg.getContent().split(" ")[1];
 
-                    // we will start a new thread for each client or dstore
-                    startThread(socket);
-                } catch (Exception e) {
-                    System.err.println("error: " + e);
+                if (fileName.equals(opFileName)) {
+                    currentStoreOps.get(opMsg).countDown();
+                    found = true;
+
+                    // if the countdown has reached 0, we will send store complete, update the index, and we will get
+                    // rid of the operation from currentRemoveOps.
+                    if (currentStoreOps.get(opMsg).getCount() == 0) {
+                        opMsg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
+                        currentStoreOps.remove(opMsg);
+                        index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
+                    }
+                    break;
                 }
+            }
+
+            if (!found) {
+                throw new Exception("Could not find " + fileName + " in current operations");
             }
         } catch (Exception e) {
-            System.err.println("error: " + e);
-        } finally {
-            if (ss != null) {
-                try {
-                    ss.close();
-                } catch (IOException e) {
-                    System.err.println("error: " + e);
-                }
-            }
+            System.out.println("Warning: Received unexpected ACK"); // perhaps we need to deal with this in a different way
         }
     }
 
-    /**
-     * Creates a new Dstore or Client thread depending on the first message sent
-     * @param socket represents the connection with the client or dstore
-     * @throws IOException
-     */
-    public static void startThread(Socket socket) throws IOException {
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        String firstMessage = in.readLine();
-        System.out.println("First message is: " + firstMessage);
-        if (firstMessage.startsWith(Protocol.JOIN_TOKEN)) {
-            int port = Integer.parseInt(firstMessage.split(" ")[1]);
-            new Thread(new DstoreThread(socket, port)).start();
-        } else {
-            new Thread(new ClientThread(socket)).start();
-        }
+    public static void handleReload(Message msg) {
+        loadOp(msg, currentLoadOps.get(msg));
     }
 
-    static class ClientThread implements Runnable {
+    public static void handleRemoveAck(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
 
-        private final Socket clientSocket;
+        try {
 
-        public ClientThread(Socket clientSocket) {
-            this.clientSocket = clientSocket;
-        }
+            boolean found = false;
+            // this for loop looks for the fileName in a current REMOVE op.
+            for (Message opMsg : currentRemoveOps.keySet()) {
+                String opFileName = opMsg.getContent().split(" ")[1];
 
-        @Override
-        public void run() {
-            synchronized (activeClients) {
-                activeClients.add(this);
-            }
-            System.out.println(this + " added to activeClients");
+                if (fileName.equals(opFileName)) {
+                    currentRemoveOps.get(opMsg).countDown();
+                    found = true;
 
-            try {
-                System.out.println("New thread created");
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-                String line;
-
-                while ((line = in.readLine()) != null) {
-                    System.out.println("Received from a client: ");
-
-                    try {
-                        handleMessage(line, in, out);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    // if the countdown has reached 0, we will send remove complete, and we will get rid of
+                    // the operation from currentRemoveOps, as well as the fileName from index
+                    if (currentRemoveOps.get(opMsg).getCount() == 0) {
+                        opMsg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN);
+                        currentRemoveOps.remove(opMsg);
+                        index.remove(fileName);
                     }
+                    break;
                 }
-
-                clientSocket.close();
-
-                synchronized (activeClients) {
-                    activeClients.remove(this);
-                }
-                System.out.println(this + " removed from activeClients");
-
-            } catch (Exception e) {
-                System.err.println("error: " + e);
-            }
-        }
-
-        private void handleMessage(String line, BufferedReader in, PrintWriter out) throws Exception {
-            if (line.startsWith(Protocol.STORE_TOKEN)) {
-                storeOp(line, out);
-            } else if (line.startsWith(Protocol.LOAD_TOKEN)) {
-                loadOp(line, out);
-            } else if (line.startsWith(Protocol.REMOVE_TOKEN)) {
-                removeOp(line, in, out);
-            } else if (line.equals(Protocol.LIST_TOKEN)) {
-                listOp(line, out);
-            } else {
-                throw new Exception("Could not handle the message");
-            }
-        }
-
-        private void storeOp(String line, PrintWriter out) {
-            String fileName = line.split(" ")[1];
-            int fileSize = Integer.parseInt(line.split(" ")[2]);
-
-            File file = new File(fileName); // TODO: Check paths and folder structure
-            StringBuilder ports = new StringBuilder();
-
-            for (DstoreThread dstore : index.get(file).getDstores()) {
-                ports.append(dstore.getPort()).append(" ");
             }
 
-            out.println(Protocol.STORE_TO_TOKEN + " " + ports);
-            System.out.println("Sending: STORE TO " + " " + ports);
-
-
-        }
-
-        public void loadOp(String line, PrintWriter out) {
-            String fileName = line.split(" ")[1];
-            File file = new File(fileName);
-            int fileSize = index.get(file).getFileSize();
-
-            for (DstoreThread dstore : index.get(file).getDstores()) {
-                int dstorePort = dstore.getPort();
-                out.println(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
-
-                // if success
-                break;
+            if (!found) {
+                throw new Exception("Could not find " + fileName + " in current operations");
             }
-        }
-
-        public void removeOp(String line, BufferedReader in, PrintWriter out) {
-            String fileName = line.split(" ")[1];
-
-            // get all the dstores
-
-            // communicate with each DstoreThread and tell them to remove the file
-
-            // tell the client the remove op is complete
-            out.println(Protocol.REMOVE_COMPLETE_TOKEN);
-        }
-
-        public void listOp(String line, PrintWriter out) {
-            StringBuilder fileList = new StringBuilder();
-
-            for (File file : index.keySet()) {
-                fileList.append(file.getName()).append(" ");
-            }
-
-            out.println(Protocol.LIST_TOKEN + " " + fileList);
-            System.out.println("Sending: " + Protocol.LIST_TOKEN + " " + fileList);
+        } catch (Exception e) {
+            System.out.println("Warning: Received unexpected ACK"); // perhaps we need to deal with this in a different way
         }
     }
 
-
-    static class DstoreThread implements Runnable {
-        private final Socket dstoreSocket;
-        private final int port;
-
-        public DstoreThread(Socket dstoreSocket, int port) {
-            this.dstoreSocket = dstoreSocket;
-            this.port = port;
-        }
-
-        public Socket getDstoreSocket() {
-            return dstoreSocket;
-        }
-
-        public int getPort() {
-            return port;
-        }
-
-        @Override
-        public void run() {
-            synchronized (activeDstores) {
-                activeDstores.add(this);
-            }
-            System.out.println(this + " added to activeDstores");
-
-
-            try {
-                System.out.println("New Dstore thread created. Its port is " + port);
-                BufferedReader in = new BufferedReader(new InputStreamReader(dstoreSocket.getInputStream()));
-                String line;
-
-                while ((line = in.readLine()) != null) {
-                    System.out.println("Received from a dstore: " + line);
-
-                    // handle each Dstore operations with if/else statements.
-                }
-
-                dstoreSocket.close();
-
-                synchronized (activeDstores) {
-                    activeDstores.remove(this);
-                }
-                System.out.println(this + " removed from activeDstores");
-
-            } catch (Exception e) {
-                System.err.println(e);
-            }
-        }
-    }
-
-    static class FileProperties {
-
-        private final int fileSize;
-        private FileStatus status;
-        private ArrayList<DstoreThread> dstores;
-
-        public FileProperties(int fileSize, FileStatus status, ArrayList<DstoreThread> dstores) {
-            this.fileSize = fileSize;
-            this.status = status;
-            this.dstores = dstores;
-        }
-
-        enum FileStatus {
-            STORE_IN_PROGRESS,
-            STORE_COMPLETE,
-            REMOVE_IN_PROGRESS,
-            REMOVE_COMPLETE
-        }
-
-        public int getFileSize() {
-            return fileSize;
-        }
-
-        public FileStatus getStatus() {
-            return status;
-        }
-
-        public void setStatus(FileStatus status) {
-            this.status = status;
-        }
-
-        public ArrayList<DstoreThread> getDstores() {
-            return dstores;
-        }
-
-        public boolean addDstore(DstoreThread dstore) {
-            return this.dstores.add(dstore);
-        }
-
-        public boolean removeDstore(DstoreThread dstore) {
-            return this.dstores.remove(dstore);
-        }
-
-        public int getCount() {
-            return dstores.size();
-        }
-    }
 }

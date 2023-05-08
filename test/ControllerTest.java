@@ -3,10 +3,12 @@ import org.junit.jupiter.api.*;
 class ControllerTest {
 
     @Test
-    void main() {
+    void handleMessageTest() {
+
     }
 
     @Test
-    void startThread() {
+    void storeOpTest() {
+
     }
 }
