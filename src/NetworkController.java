@@ -4,17 +4,24 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Networking end of the Controller class
+ */
 public class NetworkController implements Runnable {
 
-    protected final HashMap<Integer, Socket> portsToSockets;
+    /**
+     * Controller's port
+     */
     protected final int cport;
+
+    /**
+     * Messages received from the connection threads that need to be handled by the Controller
+     */
     protected final ConcurrentLinkedQueue<Message> tasks;
 
     public NetworkController(int cport, ConcurrentLinkedQueue<Message> tasks) {
-        this.portsToSockets = new HashMap<>();
         this.cport = cport;
         this.tasks = tasks;
     }
@@ -37,18 +44,18 @@ public class NetworkController implements Runnable {
                 try {
                     // a socket will be created whenever a new Client / Dstore requests to make a connection
                     Socket socket = ss.accept();
-//                    portsToSockets.put(socket.getPort(), socket);
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
                     String firstMessage = in.readLine();
 
+                    // decide whether to spawn a dstore or a client thread
                     if (firstMessage.startsWith(Protocol.JOIN_TOKEN)) {
                         int port = Integer.parseInt(firstMessage.split(" ")[1]);
-                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, in, out));
+                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, tasks, in, out));
                         dstoreThread.start();
                     } else {
-                        Thread clientThread = new Thread(new ClientThread(socket, in, out));
+                        Thread clientThread = new Thread(new ClientThread(socket, tasks, in, out));
                         clientThread.start();
                     }
 
@@ -69,35 +76,21 @@ public class NetworkController implements Runnable {
         }
     }
 
-    class ConnectionThread {
+    static class ClientThread extends ConnectionThread implements Runnable {
 
-        protected final Socket socket;
-        protected final BufferedReader in;
-        protected final PrintWriter out;
+        private final ConcurrentLinkedQueue<Message> tasks;
 
-        public ConnectionThread(Socket socket, BufferedReader in, PrintWriter out) {
-            this.socket = socket;
-            this.in = in;
-            this.out = out;
-        }
-
-        public void communicate(String message) {
-            out.println(message);
-            System.out.println("Sending: " + message);
-        }
-    }
-
-    class ClientThread extends ConnectionThread implements Runnable {
-
-        public ClientThread(Socket socket, BufferedReader in, PrintWriter out) {
+        public ClientThread(Socket socket, ConcurrentLinkedQueue<Message> tasks, BufferedReader in, PrintWriter out) {
             super(socket, in, out);
+            this.tasks = tasks;
         }
 
         @Override
         public void run() {
-            // constantly listen for incoming messages
+            System.out.println("New ClientThread started");
+
+            // constantly listen for incoming messages and add them to tasks
             try {
-                System.out.println("New ClientThread started");
                 String msg;
 
                 while ((msg = in.readLine()) != null) {
@@ -105,22 +98,27 @@ public class NetworkController implements Runnable {
                     tasks.add(new Message(msg, this));
                 }
             } catch (Exception e) {
-
+                System.err.println("Could not read message from Client");
             }
-            // add them to the queue
         }
     }
 
-    class DstoreThread extends ConnectionThread implements Runnable {
+    static class DstoreThread extends ConnectionThread implements Runnable {
 
         /**
          * Port at which the Dstore's ServerSocket will be listening for incoming Client connections.
          */
         private final int port;
 
-        public DstoreThread(Socket socket, int port, BufferedReader in, PrintWriter out) {
+        /**
+         *
+         */
+        private final ConcurrentLinkedQueue<Message> tasks;
+
+        public DstoreThread(Socket socket, int port, ConcurrentLinkedQueue<Message> tasks, BufferedReader in, PrintWriter out) {
             super(socket, in, out);
             this.port = port;
+            this.tasks = tasks;
         }
 
         public int getPort() {
@@ -129,7 +127,19 @@ public class NetworkController implements Runnable {
 
         @Override
         public void run() {
+            System.out.println("New DstoreThread started");
 
+            // constantly listen for incoming messages and add them to tasks
+            try {
+                String msg;
+
+                while ((msg = in.readLine()) != null) {
+                    System.out.println("Received from Dstore: " + msg);
+                    tasks.add(new Message(msg, this));
+                }
+            } catch (Exception e) {
+                System.err.println("Could not read message from Dstore");
+            }
         }
     }
 }

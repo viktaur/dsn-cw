@@ -59,7 +59,7 @@ public class Controller {
 
         cport = Integer.parseInt(args[0]);
         r = Integer.parseInt(args[1]);
-        timeout = Integer.parseInt(args[2]);
+        timeout = Integer.parseInt(args[2]); //TODO: Do something with timeout
         rebalancePeriod = Integer.parseInt(args[3]);
 
         // We start a thread that will constantly listen to all incoming connections
@@ -80,16 +80,22 @@ public class Controller {
             }
         }
     }
-    private static void handleMessage(Message msg) throws Exception {
+
+    /**
+     * Handles a message from tasks
+     * @param msg message to handle
+     * @throws Exception if anything goes wrong
+     */
+    public static void handleMessage(Message msg) throws Exception {
 
         if (msg.getContent().startsWith(Protocol.STORE_TOKEN)) {
-            storeOp(msg);
+            if (canPerformStoreOp(msg))  storeOp(msg);
         } else if (msg.getContent().startsWith(Protocol.LOAD_TOKEN)) {
-            loadOp(msg, 0);
+            if (canPerformRemoveLoadOp(msg)) loadOp(msg, 0);
         } else if (msg.getContent().startsWith(Protocol.REMOVE_TOKEN)) {
-            removeOp(msg);
+            if (canPerformRemoveLoadOp(msg))  removeOp(msg);
         } else if (msg.getContent().equals(Protocol.LIST_TOKEN)) {
-            listOp(msg);
+            if (canPerformListOp(msg))  listOp(msg);
         } else if (msg.getContent().startsWith(Protocol.STORE_ACK_TOKEN)) {
             handleStoreAck(msg);
         } else if (msg.getContent().startsWith(Protocol.RELOAD_TOKEN)) {
@@ -101,7 +107,43 @@ public class Controller {
         }
     }
 
-    private static void storeOp(Message msg) {
+    public static boolean canPerformStoreOp(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+
+        if (activeDstores.size() < r) {
+            msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
+            return false;
+        }
+        if (index.get(fileName) != null) {
+            msg.getSender().communicate(Protocol.ERROR_FILE_ALREADY_EXISTS_TOKEN);
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean canPerformRemoveLoadOp(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+
+        if (activeDstores.size() < r) {
+            msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
+            return false;
+        }
+        if (index.get(fileName) == null) {
+            msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean canPerformListOp(Message msg) {
+        if (activeDstores.size() < r) {
+            msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
+            return false;
+        }
+        return true;
+    }
+
+    public static void storeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
         int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
 
