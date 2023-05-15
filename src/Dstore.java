@@ -1,3 +1,8 @@
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -28,7 +33,12 @@ public class Dstore {
      */
     protected static final ConcurrentLinkedQueue<Message> tasks = new ConcurrentLinkedQueue<>();
 
-    protected static final HashMap<ConnectionThread, String> filesToStore = new HashMap<>();
+    protected static final FileStoredListener fileStoredListener = new FileStoredListener() {
+        @Override
+        public void fileStored() {
+
+        }
+    };
 
     public static void main(String[] args) {
 
@@ -38,7 +48,7 @@ public class Dstore {
         fileFolder = args[3];
 
         // We start a thread that will constantly listen to all incoming connections
-        Thread incomingConnections = new Thread(new NetworkDstore(port, cport));
+        Thread incomingConnections = new Thread(new NetworkDstore(port, cport, tasks));
         incomingConnections.start();
 
         // This is the main execution loop
@@ -63,15 +73,52 @@ public class Dstore {
     }
 
     private static void store(Message msg) {
-        String fileName = msg.getContent().split(" ")[1];
-        int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
 
-        filesToStore.put(msg.getSender(), fileName);
+        // We'll start a new thread to listen for the client's file transfer and then tell the Controller, so it
+        // can update the index.
+        Thread storeThread = new Thread(new StoreThread(msg));
+        storeThread.start();
+
         msg.getSender().communicate(Protocol.ACK_TOKEN);
     }
 
-    private static void handleFileTransfer() {
-        // ...
+    static class StoreThread implements Runnable {
 
+        private final Message msg;
+        private final String fileName;
+        private final int fileSize;
+
+        public StoreThread(Message msg) {
+            this.msg = msg;
+            this.fileName = msg.getContent().split(" ")[1];
+            this.fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
+        }
+
+        @Override
+        public void run() {
+            final byte[] data = new byte[fileSize];
+
+            try {
+                // we create a new file
+                File file = new File(fileFolder + "/" + fileName);
+                if (file.createNewFile()) {
+                    System.out.println("File created " + file);
+                } else {
+                    System.out.println("File already exists");
+                }
+
+                // we read the data from the inputStream
+                InputStream inputStream = msg.getSender().getSocket().getInputStream();
+                inputStream.readNBytes(data, 0, fileSize);
+
+                // we write the data to the file
+                Files.write(file.toPath(), data);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // tell the controller that we're done
+
+        }
     }
 }

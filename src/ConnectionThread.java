@@ -18,4 +18,8 @@ public class ConnectionThread {
         out.println(message);
         System.out.println("Sending: " + message);
     }
+
+    public Socket getSocket() {
+        return socket;
+    }
 }

@@ -24,10 +24,13 @@ public class NetworkDstore implements Runnable {
      */
     private final ConcurrentLinkedQueue<Message> tasks;
 
-    public NetworkDstore(int port, int cport, ConcurrentLinkedQueue<Message> tasks) {
+    private final FileStoredListener fileStoredListener;
+
+    public NetworkDstore(int port, int cport, ConcurrentLinkedQueue<Message> tasks, FileStoredListener fileStoredListener) {
         this.port = port;
         this.cport = cport;
         this.tasks = tasks;
+        this.fileStoredListener = fileStoredListener;
     }
 
     @Override
@@ -38,14 +41,13 @@ public class NetworkDstore implements Runnable {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks));
+            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks, fileStoredListener));
             controllerConnection.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         // Create a ServerSocket that accepts connections from Clients in port
-
         try (ServerSocket ss = new ServerSocket(port)) {
 
             // we are constantly accepting new connections from clients
@@ -75,14 +77,27 @@ public class NetworkDstore implements Runnable {
         private final int port;
 
         private final ConcurrentLinkedQueue<Message> tasks;
-        public ControllerThread(Socket socket, BufferedReader in, PrintWriter out, int port, ConcurrentLinkedQueue<Message> tasks) {
+
+        private final FileStoredListener fileStoredListener;
+
+        public ControllerThread(
+                Socket socket,
+                BufferedReader in,
+                PrintWriter out,
+                int port,
+                ConcurrentLinkedQueue<Message> tasks,
+                FileStoredListener fileStoredListener) {
             super(socket, in, out);
             this.port = port;
             this.tasks = tasks;
+            this.fileStoredListener = fileStoredListener;
         }
 
         @Override
         public void run() {
+            // We send JOIN port to the Controller
+            this.communicate(Protocol.JOIN_TOKEN + " " + port);
+
             String msg;
             try {
                 while ((msg = in.readLine()) != null) {

@@ -161,6 +161,8 @@ public class Controller {
 
         // handle acks
         currentStoreOps.put(msg, new CountDownLatch(r));
+
+        // TODO: Set timeouts
     }
 
     public static void loadOp(Message msg, Integer i) {
@@ -266,5 +268,4 @@ public class Controller {
             System.out.println("Warning: Received unexpected ACK"); // perhaps we need to deal with this in a different way
         }
     }
-
 }
