@@ -1,10 +1,10 @@
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Dstore {
 
@@ -33,12 +33,11 @@ public class Dstore {
      */
     protected static final ConcurrentLinkedQueue<Message> tasks = new ConcurrentLinkedQueue<>();
 
-    protected static final FileStoredListener fileStoredListener = new FileStoredListener() {
-        @Override
-        public void fileStored() {
+    protected static DstoreListener dstoreListener;
 
-        }
-    };
+    public static void setDstoreListener(DstoreListener dstoreListener) {
+        Dstore.dstoreListener = dstoreListener;
+    }
 
     public static void main(String[] args) {
 
@@ -69,6 +68,10 @@ public class Dstore {
     private static void handleMessage(Message msg) {
         if (msg.getContent().startsWith(Protocol.STORE_TOKEN)) {
             store(msg);
+        } else if (msg.getContent().startsWith(Protocol.LOAD_DATA_TOKEN)) {
+            load(msg);
+        } else if (msg.getContent().startsWith(Protocol.REMOVE_TOKEN)) {
+            remove(msg);
         }
     }
 
@@ -76,10 +79,47 @@ public class Dstore {
 
         // We'll start a new thread to listen for the client's file transfer and then tell the Controller, so it
         // can update the index.
-        Thread storeThread = new Thread(new StoreThread(msg));
-        storeThread.start();
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(new StoreThread(msg));
 
         msg.getSender().communicate(Protocol.ACK_TOKEN);
+    }
+
+    private static void load(Message msg) {
+
+        String fileName = msg.getContent().split(" ")[1];
+
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(() -> {
+            try {
+                File file = new File(fileFolder + "/" + fileName);
+                if (file.exists()) {
+                    byte[] fileContent = Files.readAllBytes(file.toPath());
+                    msg.getSender().getSocket().getOutputStream().write(fileContent);
+                } else {
+                    System.err.println("File does not exists");
+                }
+            } catch (IOException e) {
+                System.err.println("Could not load file");
+            }
+        });
+    }
+
+    public static void remove(Message msg) {
+
+        String fileName = msg.getContent().split(" ")[1];
+
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(() -> {
+            try {
+                File file = new File(fileFolder + "/" + fileName);
+                Files.deleteIfExists(file.toPath());
+
+                dstoreListener.fileRemoved(fileName);
+            } catch (IOException e) {
+                System.err.println("Could not remove file");
+            }
+        });
     }
 
     static class StoreThread implements Runnable {
@@ -114,11 +154,11 @@ public class Dstore {
                 // we write the data to the file
                 Files.write(file.toPath(), data);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.err.println("Could not store file");
             }
 
             // tell the controller that we're done
-
+            dstoreListener.fileStored(fileName);
         }
     }
 }

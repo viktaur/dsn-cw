@@ -24,13 +24,10 @@ public class NetworkDstore implements Runnable {
      */
     private final ConcurrentLinkedQueue<Message> tasks;
 
-    private final FileStoredListener fileStoredListener;
-
-    public NetworkDstore(int port, int cport, ConcurrentLinkedQueue<Message> tasks, FileStoredListener fileStoredListener) {
+    public NetworkDstore(int port, int cport, ConcurrentLinkedQueue<Message> tasks) {
         this.port = port;
         this.cport = cport;
         this.tasks = tasks;
-        this.fileStoredListener = fileStoredListener;
     }
 
     @Override
@@ -41,7 +38,7 @@ public class NetworkDstore implements Runnable {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks, fileStoredListener));
+            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks));
             controllerConnection.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -78,19 +75,35 @@ public class NetworkDstore implements Runnable {
 
         private final ConcurrentLinkedQueue<Message> tasks;
 
-        private final FileStoredListener fileStoredListener;
+        private final DstoreListener dstoreListener;
+
+        private final ControllerThread ct;
 
         public ControllerThread(
                 Socket socket,
                 BufferedReader in,
                 PrintWriter out,
                 int port,
-                ConcurrentLinkedQueue<Message> tasks,
-                FileStoredListener fileStoredListener) {
+                ConcurrentLinkedQueue<Message> tasks
+        ) {
+
             super(socket, in, out);
             this.port = port;
             this.tasks = tasks;
-            this.fileStoredListener = fileStoredListener;
+            this.ct = this;
+            this.dstoreListener = new DstoreListener() {
+                @Override
+                public void fileStored(String fileName) {
+                    ct.communicate(Protocol.STORE_ACK_TOKEN + " " + fileName);
+                }
+
+                @Override
+                public void fileRemoved(String fileName) {
+                    ct.communicate(Protocol.REMOVE_ACK_TOKEN + " " + fileName);
+                }
+            };
+
+            Dstore.setDstoreListener(this.dstoreListener);
         }
 
         @Override

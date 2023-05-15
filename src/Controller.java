@@ -147,6 +147,8 @@ public class Controller {
         String fileName = msg.getContent().split(" ")[1];
         int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
 
+        // we update index, so when the Controller receives a store request for the same file from another client,
+        // it will know that there's already a store operation in progress for that file.
         index.put(fileName, new FileProperties(fileSize, FileProperties.FileStatus.STORE_IN_PROGRESS, new ArrayList<>()));
 
         StringBuilder ports = new StringBuilder();
@@ -170,13 +172,17 @@ public class Controller {
         FileProperties fp = index.get(fileName);
         int fileSize = fp.getFileSize();
 
-        int dstorePort = fp.getDstores().get(i).getPort();
-        msg.getSender().communicate(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
+        try {
+            int dstorePort = fp.getDstores().get(i).getPort();
+            msg.getSender().communicate(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
 
-        // in case dstore 0 fails, we will try with 1
-        currentLoadOps.put(msg, i+1);
+            // in case dstore 0 fails, we will try with 1
+            currentLoadOps.put(msg, i+1);
+        } catch (IndexOutOfBoundsException e) {
+            System.err.println("Index larger than number of dstores");
+            msg.getSender().communicate(Protocol.ERROR_LOAD_TOKEN);
+        }
     }
-
 
     public static void removeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
@@ -186,6 +192,7 @@ public class Controller {
             dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
         }
 
+        // initialise a countdown latch that will keep track of the REMOVE_ACKS sent by the dstores
         currentRemoveOps.put(msg, new CountDownLatch(r));
     }
 
@@ -218,6 +225,7 @@ public class Controller {
                     if (currentStoreOps.get(opMsg).getCount() == 0) {
                         opMsg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
                         currentStoreOps.remove(opMsg);
+                        System.out.println("Store op completed: " + fileName);
                         index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
                     }
                     break;
@@ -242,13 +250,15 @@ public class Controller {
         try {
 
             boolean found = false;
-            // this for loop looks for the fileName in a current REMOVE op.
+
+            // this loops through the fileNames in currentRemoveOps and tries to find a match.
             for (Message opMsg : currentRemoveOps.keySet()) {
                 String opFileName = opMsg.getContent().split(" ")[1];
 
                 if (fileName.equals(opFileName)) {
-                    currentRemoveOps.get(opMsg).countDown();
                     found = true;
+
+                    currentRemoveOps.get(opMsg).countDown();
 
                     // if the countdown has reached 0, we will send remove complete, and we will get rid of
                     // the operation from currentRemoveOps, as well as the fileName from index
@@ -256,6 +266,7 @@ public class Controller {
                         opMsg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN);
                         currentRemoveOps.remove(opMsg);
                         index.remove(fileName);
+                        System.out.println(fileName + " removed from index");
                     }
                     break;
                 }
