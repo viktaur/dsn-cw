@@ -1,7 +1,5 @@
 import java.io.*;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -19,25 +17,32 @@ public class NetworkDstore implements Runnable {
      */
     private final int cport;
 
+    private final int timeout;
+
     /**
      * Messages received from the connection threads that need to be handled by the Dstore
      */
     private final ConcurrentLinkedQueue<Message> tasks;
 
-    public NetworkDstore(int port, int cport, ConcurrentLinkedQueue<Message> tasks) {
+    public NetworkDstore(int port, int cport, int timeout, ConcurrentLinkedQueue<Message> tasks) {
         this.port = port;
         this.cport = cport;
+        this.timeout = timeout;
         this.tasks = tasks;
     }
 
     @Override
     public void run() {
-        // Create a new socket to cport
         try {
+            // Create a new socket to cport (the Controller) and set the timeout
             Socket socket = new Socket(InetAddress.getLoopbackAddress(), cport);
+            socket.setSoTimeout(timeout);
+
+            // Initialise I/O
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
+            // Start a new thread that will take care of the Controller connection
             Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks));
             controllerConnection.start();
         } catch (IOException e) {
@@ -86,7 +91,6 @@ public class NetworkDstore implements Runnable {
                 int port,
                 ConcurrentLinkedQueue<Message> tasks
         ) {
-
             super(socket, in, out);
             this.port = port;
             this.tasks = tasks;
@@ -121,8 +125,6 @@ public class NetworkDstore implements Runnable {
                 System.err.println("Could not read message from Controller");
             }
         }
-
-
     }
 
     static class ClientThread extends ConnectionThread implements Runnable {

@@ -47,7 +47,7 @@ public class Dstore {
         fileFolder = args[3];
 
         // We start a thread that will constantly listen to all incoming connections
-        Thread incomingConnections = new Thread(new NetworkDstore(port, cport, tasks));
+        Thread incomingConnections = new Thread(new NetworkDstore(port, cport, timeout, tasks));
         incomingConnections.start();
 
         // This is the main execution loop

@@ -3,6 +3,8 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
+client_*
+
 ### Eclipse ###
 .apt_generated
 .classpath
