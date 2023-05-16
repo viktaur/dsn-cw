@@ -135,6 +135,12 @@ public class NetworkController implements Runnable {
 
                 while ((msg = in.readLine()) != null) {
                     System.out.println("Received from Dstore: " + msg);
+
+                    // if (msg.getContent().equals(Protocol.STORE_ACK_TOKEN)) {
+                    //     // disable the timeout when receiving STORE_ACK
+                    //     this.socket.setSoTimeout(0);
+                    // }
+
                     tasks.add(new Message(msg, this));
                 }
             } catch (Exception e) {

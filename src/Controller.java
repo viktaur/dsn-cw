@@ -165,8 +165,9 @@ public class Controller {
         currentStoreOps.put(msg, new CountDownLatch(r));
 
         // activateDstoresTimeoutsListener.activateStoreAckTimeout();
+        // we will set a timeout for receiving the STORE_ACKs
         for (NetworkController.DstoreThread dstoreThread : activeDstores.keySet()) {
-            dstoreThread.getSocket()
+            dstoreThread.getSocket().setSoTimeout(timeout);
         }
     }
 
