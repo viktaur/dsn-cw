@@ -4,7 +4,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Date;
+import java.util.concurrent.*;
 
 /**
  * Networking end of the Controller class
@@ -110,15 +111,18 @@ public class NetworkController implements Runnable {
          */
         private final int port;
 
-        /**
-         *
-         */
         private final ConcurrentLinkedQueue<Message> tasks;
+
+        private final ConcurrentLinkedQueue<String> storeAcks;
+        private final ConcurrentLinkedQueue<String> removeAcks;
+
 
         public DstoreThread(Socket socket, int port, ConcurrentLinkedQueue<Message> tasks, BufferedReader in, PrintWriter out) {
             super(socket, in, out);
             this.port = port;
             this.tasks = tasks;
+            this.storeAcks = new ConcurrentLinkedQueue<>();
+            this.removeAcks = new ConcurrentLinkedQueue<>();
         }
 
         public int getPort() {
@@ -127,6 +131,9 @@ public class NetworkController implements Runnable {
 
         @Override
         public void run() {
+
+            Controller.addDstore(this);
+
             System.out.println("New DstoreThread started");
 
             // constantly listen for incoming messages and add them to tasks
@@ -135,17 +142,44 @@ public class NetworkController implements Runnable {
 
                 while ((msg = in.readLine()) != null) {
                     System.out.println("Received from Dstore: " + msg);
+                    String fileName = msg.split(" ")[1];
 
-                    // if (msg.getContent().equals(Protocol.STORE_ACK_TOKEN)) {
-                    //     // disable the timeout when receiving STORE_ACK
-                    //     this.socket.setSoTimeout(0);
-                    // }
+                     if (msg.startsWith(Protocol.STORE_ACK_TOKEN)) {
+                        storeAcks.add(fileName);
+                     } else if (msg.startsWith(Protocol.REMOVE_ACK_TOKEN)) {
+                         removeAcks.add(fileName);
+                     }
 
                     tasks.add(new Message(msg, this));
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 System.err.println("Could not read message from Dstore");
+                Controller.removeDstore(this);
             }
+        }
+
+        public void startStoreTimeout(String fileName, int timeout) throws TimeoutException {
+            timeout(fileName, timeout, removeAcks);
+        }
+
+        public void startRemoveTimeout(String fileName, int timeout) throws TimeoutException {
+            timeout(fileName, timeout, storeAcks);
+        }
+
+        public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
+            long startTime = System.currentTimeMillis();
+            long elapsedTime = 0L;
+
+            while (elapsedTime < timeout) {
+                if (acks.contains(fileName)) {
+                    acks.remove(fileName);
+                    return;
+                }
+                elapsedTime = (new Date()).getTime() - startTime;
+                // might add Thread.sleep here
+            }
+
+            throw new TimeoutException();
         }
     }
 }

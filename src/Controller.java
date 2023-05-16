@@ -1,7 +1,9 @@
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Controller {
 
@@ -39,11 +41,6 @@ public class Controller {
      * Messages received from the connection threads that need to be handled
      */
     protected static final ConcurrentLinkedQueue<Message> tasks = new ConcurrentLinkedQueue<>();
-
-    /**
-     * Store operations that have not yet been completed
-     */
-    protected static final HashMap<Message, CountDownLatch> currentStoreOps = new HashMap<>();
 
     /**
      * Load operations that have not yet been completed
@@ -97,11 +94,11 @@ public class Controller {
         } else if (msg.getContent().equals(Protocol.LIST_TOKEN)) {
             if (canPerformListOp(msg))  listOp(msg);
         } else if (msg.getContent().startsWith(Protocol.STORE_ACK_TOKEN)) {
-            handleStoreAck(msg);
+//            handleStoreAck(msg);
         } else if (msg.getContent().startsWith(Protocol.RELOAD_TOKEN)) {
             handleReload(msg);
         } else if (msg.getContent().startsWith(Protocol.REMOVE_ACK_TOKEN)) {
-            handleRemoveAck(msg);
+//            handleRemoveAck(msg);
         } else {
             throw new Exception("Unknown operation token");
         }
@@ -114,7 +111,7 @@ public class Controller {
             msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
             return false;
         }
-        if (index.get(fileName) != null) {
+        if ((index.get(fileName) != null) && (!index.get(fileName).removeIsCompleted())) { // check whether the second is necessary
             msg.getSender().communicate(Protocol.ERROR_FILE_ALREADY_EXISTS_TOKEN);
             return false;
         }
@@ -128,7 +125,7 @@ public class Controller {
             msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
             return false;
         }
-        if (index.get(fileName) == null) {
+        if ((index.get(fileName) == null) || (index.get(fileName).storeIsInProgress()) || (index.get(fileName).removeIsInProgress())) {
             msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
             return false;
         }
@@ -149,26 +146,66 @@ public class Controller {
 
         // we update index, so when the Controller receives a store request for the same file from another client,
         // it will know that there's already a store operation in progress for that file.
-        index.put(fileName, new FileProperties(fileSize, FileProperties.FileStatus.STORE_IN_PROGRESS, new ArrayList<>()));
+        index.put(fileName, new FileProperties(
+                fileSize,
+                FileProperties.FileStatus.STORE_IN_PROGRESS,
+                new ArrayList<>(activeDstores.stream().limit(r).toList())
+        ));
+
+        // this should be always equal to r, but just in case
+        int nDstores = index.get(fileName).getDstores().size();
 
         StringBuilder ports = new StringBuilder();
 
-        // get the first r active dstores
-        for (NetworkController.DstoreThread dstore : activeDstores.stream().limit(r).toList()) {
+        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
             ports.append(dstore.getPort()).append(" ");
         }
 
+        // service that will start a timeout on each dstore and update the index & communicate STORE_COMPLETE
+        // to the client if successful.
+        ExecutorService handleStoreAcks = Executors.newSingleThreadExecutor();
+        handleStoreAcks.submit(() -> {
+
+            CountDownLatch latch = new CountDownLatch(nDstores);
+            AtomicBoolean timeoutHappened = new AtomicBoolean(false);
+
+            ExecutorService timeoutThreads = Executors.newFixedThreadPool(nDstores);
+            for (NetworkController.DstoreThread dstoreThread : index.get(fileName).getDstores()) {
+                timeoutThreads.submit(() -> {
+                    try {
+                        // we call this method to set a timeout for receiving the STORE_ACKs
+                        dstoreThread.startStoreTimeout(fileName, timeout);
+                    } catch (TimeoutException e) {
+                        timeoutHappened.set(true);
+                        System.err.println("Store ack timeout happened");
+                        e.printStackTrace();
+                        return;
+                    }
+
+                    latch.countDown();
+                });
+            }
+
+            while (true) {
+                if (timeoutHappened.get()) {
+                    index.remove(fileName);
+                    System.err.println("Store op failed: " + fileName);
+                    break;
+                }
+
+                if (latch.getCount() == 0) {
+                    index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
+                    msg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
+                    System.out.println("Store op completed: " + fileName);
+                    break;
+                }
+            }
+
+            timeoutThreads.shutdown();
+        });
+
         // send the ports of those dstores to the client
         msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
-
-        // handle acks
-        currentStoreOps.put(msg, new CountDownLatch(r));
-
-        // activateDstoresTimeoutsListener.activateStoreAckTimeout();
-        // we will set a timeout for receiving the STORE_ACKs
-        for (NetworkController.DstoreThread dstoreThread : activeDstores.keySet()) {
-            dstoreThread.getSocket().setSoTimeout(timeout);
-        }
     }
 
     public static void loadOp(Message msg, Integer i) {
@@ -191,96 +228,86 @@ public class Controller {
     public static void removeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
 
+        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
+
+        // this should be always equal to r, but just in case
+        int nDstores = index.get(fileName).getDstores().size();
+
+        ExecutorService handleRemoveAcks = Executors.newSingleThreadExecutor();
+        handleRemoveAcks.submit(() -> {
+            CountDownLatch latch = new CountDownLatch(nDstores);
+            AtomicBoolean timeoutHappened = new AtomicBoolean(false);
+
+            ExecutorService timeoutThreads = Executors.newFixedThreadPool(nDstores);
+            for (NetworkController.DstoreThread dstoreThread : index.get(fileName).getDstores()) {
+                timeoutThreads.submit(() -> {
+                    try {
+                        dstoreThread.startRemoveTimeout(fileName, timeout);
+                    } catch (TimeoutException e) {
+                        timeoutHappened.set(true);
+                        System.err.println("Remove ack timeout happened");
+                        e.printStackTrace();
+                        return;
+                    }
+
+                    latch.countDown();
+                });
+
+                while (true) {
+                    if (timeoutHappened.get()) {
+                        // we will not update the file status, it should stay as REMOVE_IN_PROGRESS
+                        System.err.println("Remove op failed: " + fileName);
+                        break;
+                    }
+
+                    if (latch.getCount() == 0) {
+                        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
+                        msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN); // do we need to remove it from index?
+                        System.out.println("Remove op completed: " + fileName);
+                        break;
+                    }
+                }
+
+                timeoutThreads.shutdown();
+            }
+        });
+
         // get all the dstores
         for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
             dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
         }
-
-        // initialise a countdown latch that will keep track of the REMOVE_ACKS sent by the dstores
-        currentRemoveOps.put(msg, new CountDownLatch(r));
     }
 
     public static void listOp(Message msg) {
         StringBuilder fileList = new StringBuilder();
 
         for (String fileName : index.keySet()) {
-            fileList.append(fileName).append(" ");
+            if (index.get(fileName).storeIsCompleted()) {
+                fileList.append(fileName).append(" ");
+            }
         }
 
         msg.getSender().communicate(Protocol.LIST_TOKEN + " " + fileList);
-    }
-
-    public static void handleStoreAck(Message msg) {
-        String fileName = msg.getContent().split(" ")[1];
-
-        try {
-
-            boolean found = false;
-            // this for loop looks for the fileName in a current STORE op.
-            for (Message opMsg : currentStoreOps.keySet()) {
-                String opFileName = opMsg.getContent().split(" ")[1];
-
-                if (fileName.equals(opFileName)) {
-                    currentStoreOps.get(opMsg).countDown();
-                    found = true;
-
-                    // if the countdown has reached 0, we will send store complete, update the index, and we will get
-                    // rid of the operation from currentRemoveOps.
-                    if (currentStoreOps.get(opMsg).getCount() == 0) {
-                        opMsg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
-                        currentStoreOps.remove(opMsg);
-                        System.out.println("Store op completed: " + fileName);
-                        index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
-                    }
-                    break;
-                }
-            }
-
-            if (!found) {
-                throw new Exception("Could not find " + fileName + " in current operations");
-            }
-        } catch (Exception e) {
-            System.out.println("Warning: Received unexpected ACK"); // perhaps we need to deal with this in a different way
-        }
     }
 
     public static void handleReload(Message msg) {
         loadOp(msg, currentLoadOps.get(msg));
     }
 
-    public static void handleRemoveAck(Message msg) {
-        String fileName = msg.getContent().split(" ")[1];
+    public static void addDstore(NetworkController.DstoreThread dstore) {
+        activeDstores.add(dstore);
 
-        try {
+        // call rebalance here
+    }
 
-            boolean found = false;
+    public static void removeDstore(NetworkController.DstoreThread dstore) {
 
-            // this loops through the fileNames in currentRemoveOps and tries to find a match.
-            for (Message opMsg : currentRemoveOps.keySet()) {
-                String opFileName = opMsg.getContent().split(" ")[1];
-
-                if (fileName.equals(opFileName)) {
-                    found = true;
-
-                    currentRemoveOps.get(opMsg).countDown();
-
-                    // if the countdown has reached 0, we will send remove complete, and we will get rid of
-                    // the operation from currentRemoveOps, as well as the fileName from index
-                    if (currentRemoveOps.get(opMsg).getCount() == 0) {
-                        opMsg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN);
-                        currentRemoveOps.remove(opMsg);
-                        index.remove(fileName);
-                        System.out.println(fileName + " removed from index");
-                    }
-                    break;
-                }
+        for (FileProperties fp : index.values()) {
+            if (fp.getDstores().contains(dstore)) {
+                fp.removeDstore(dstore);
             }
-
-            if (!found) {
-                throw new Exception("Could not find " + fileName + " in current operations");
-            }
-        } catch (Exception e) {
-            System.out.println("Warning: Received unexpected ACK"); // perhaps we need to deal with this in a different way
         }
+
+        activeDstores.remove(dstore);
     }
 }

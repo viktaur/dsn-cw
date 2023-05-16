@@ -5,11 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client_1684071472813.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/client_1684071499209.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FileProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileProperties.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -163,7 +162,8 @@
       <workItem from="1684064008663" duration="4137000" />
       <workItem from="1684155181385" duration="21000" />
       <workItem from="1684155210153" duration="13640000" />
-      <workItem from="1684181252532" duration="4709000" />
+      <workItem from="1684181252532" duration="5328000" />
+      <workItem from="1684243418672" duration="15482000" />
     </task>
     <servers />
   </component>

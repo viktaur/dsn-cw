@@ -36,7 +36,6 @@ public class NetworkDstore implements Runnable {
         try {
             // Create a new socket to cport (the Controller) and set the timeout
             Socket socket = new Socket(InetAddress.getLoopbackAddress(), cport);
-            socket.setSoTimeout(timeout);
 
             // Initialise I/O
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
