@@ -164,7 +164,10 @@ public class Controller {
         // handle acks
         currentStoreOps.put(msg, new CountDownLatch(r));
 
-        // TODO: Set timeouts
+        // activateDstoresTimeoutsListener.activateStoreAckTimeout();
+        for (NetworkController.DstoreThread dstoreThread : activeDstores.keySet()) {
+            dstoreThread.getSocket()
+        }
     }
 
     public static void loadOp(Message msg, Integer i) {
