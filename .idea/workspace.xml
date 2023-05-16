@@ -5,13 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Message.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/FileProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/ControllerTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/test/ControllerTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,8 +21,12 @@
       <list>
         <option value="JUnit5 Test Class" />
         <option value="Class" />
+        <option value="Interface" />
       </list>
     </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="uzniidb7" />
@@ -51,7 +53,7 @@
     &quot;com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrary&quot;: &quot;JUnit5&quot;,
     &quot;com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrarySuperClass.JUnit5&quot;: &quot;&quot;,
     &quot;jdk.selected.JAVA_MODULE&quot;: &quot;17&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/viktaur/Documents/GitHub/comp-sys-cw&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/viktaur/Documents/GitHub/pent-a-tone&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -60,7 +62,7 @@
     &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
     &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.ide.settings.new.ui&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -71,30 +73,33 @@
     <key name="CreateTestDialog.Recents.Supers">
       <recent name="" />
     </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
     <key name="CreateTestDialog.RecentsKey">
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="JUnit.ControllerTest.handleMessageTest">
+  <component name="RunManager" selected="Application.ClientMain">
     <configuration name="ClientMain" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="ClientMain" />
       <module name="dsn-cw" />
+      <option name="PROGRAM_PARAMETERS" value="3000 10000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Controller" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="Controller" />
+    <configuration name="Dstore" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="dsn-cw" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ControllerTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+    <configuration name="All in dsn-cw" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="dsn-cw" />
       <option name="PACKAGE_NAME" value="" />
-      <option name="MAIN_CLASS_NAME" value="ControllerTest" />
-      <option name="TEST_OBJECT" value="class" />
+      <option name="TEST_OBJECT" value="package" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -109,12 +114,23 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="ControllerTest.storeOpTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="dsn-cw" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="ControllerTest" />
+      <option name="METHOD_NAME" value="storeOpTest" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
-        <item itemvalue="JUnit.ControllerTest" />
-        <item itemvalue="Application.Controller" />
         <item itemvalue="Application.ClientMain" />
+        <item itemvalue="JUnit.All in dsn-cw" />
+        <item itemvalue="Application.Dstore" />
+        <item itemvalue="JUnit.ControllerTest.storeOpTest" />
+        <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
       </list>
     </recent_temporary>
   </component>
@@ -138,11 +154,34 @@
       <workItem from="1683282160286" duration="28548000" />
       <workItem from="1683492753309" duration="6072000" />
       <workItem from="1683543456691" duration="19470000" />
+      <workItem from="1683636569009" duration="24000" />
+      <workItem from="1683636600113" duration="4562000" />
+      <workItem from="1683823952113" duration="6174000" />
+      <workItem from="1683994100758" duration="20000" />
+      <workItem from="1684002678797" duration="205000" />
+      <workItem from="1684064008663" duration="4137000" />
+      <workItem from="1684155181385" duration="21000" />
+      <workItem from="1684155210153" duration="13640000" />
+      <workItem from="1684181252532" duration="5328000" />
+      <workItem from="1684243418672" duration="15482000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.log" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="java.lang.RuntimeException" package="java.lang" />
+          <option name="timeStamp" value="2" />
+        </breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

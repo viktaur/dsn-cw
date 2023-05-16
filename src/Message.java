@@ -8,9 +8,9 @@ public class Message {
     /**
      * Thread from which the message was received
      */
-    private final NetworkController.ConnectionThread sender;
+    private final ConnectionThread sender;
 
-    public Message(String content, NetworkController.ConnectionThread sender) {
+    public Message(String content, ConnectionThread sender) {
         this.content = content;
         this.sender = sender;
     }
@@ -19,7 +19,7 @@ public class Message {
         return content;
     }
 
-    public NetworkController.ConnectionThread getSender() {
+    public ConnectionThread getSender() {
         return sender;
     }
 }

@@ -46,4 +46,20 @@ public class FileProperties {
     public int getCount() {
         return dstores.size();
     }
+
+    public boolean storeIsInProgress() {
+        return this.status == FileStatus.STORE_IN_PROGRESS;
+    }
+
+    public boolean storeIsCompleted() {
+        return this.status == FileStatus.STORE_COMPLETE;
+    }
+
+    public boolean removeIsInProgress() {
+        return this.status == FileStatus.REMOVE_IN_PROGRESS;
+    }
+
+    public boolean removeIsCompleted() {
+        return this.status == FileStatus.REMOVE_COMPLETE;
+    }
 }
