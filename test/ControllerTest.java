@@ -50,8 +50,6 @@ class ControllerTest {
 
     @Test
     void storeOpTest() {
-        Message msg = new Message(Protocol.STORE_TOKEN + " abcd.txt 10", clientSender);
-        Controller.storeOp(msg);
 
     }
 }

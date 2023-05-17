@@ -105,6 +105,11 @@ public class NetworkDstore implements Runnable {
                 public void fileRemoved(String fileName) {
                     ct.communicate(Protocol.REMOVE_ACK_TOKEN + " " + fileName);
                 }
+
+                @Override
+                public void errorFileDoesNotExist(String fileName) {
+                    ct.communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName);
+                }
             };
 
             Dstore.setDstoreListener(this.dstoreListener);
@@ -118,7 +123,7 @@ public class NetworkDstore implements Runnable {
             String msg;
             try {
                 while ((msg = in.readLine()) != null) {
-                    System.out.println("Received from controller: " + msg);
+                    System.out.println("Received from Controller: " + msg);
                     tasks.add(new Message(msg, this));
                 }
             } catch (Exception e) {
@@ -138,13 +143,24 @@ public class NetworkDstore implements Runnable {
 
         @Override
         public void run() {
+
             String msg;
+
             try {
+                // it should only run once, for the STORE command
                 while ((msg = in.readLine()) != null) {
-                    System.out.println("Received from controller: " + msg);
-                    tasks.add(new Message(msg, this));
+
+                    // we will ensure it's a STORE command
+                    if (msg.startsWith(Protocol.STORE_TOKEN)) {
+                        System.out.println("Received from Client: " + msg);
+                        tasks.add(new Message(msg, this));
+                        break;
+                    }
                 }
-            } catch (Exception e) {
+
+                // we will close the BufferedReader, as we will no longer need it
+//                in.close();
+            } catch (IOException e) {
                 System.err.println("Could not read message from Client");
             }
         }

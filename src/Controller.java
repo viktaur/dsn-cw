@@ -1,7 +1,4 @@
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -139,7 +136,7 @@ public class Controller {
         return true;
     }
 
-    public static void storeOp(Message msg) throws InterruptedException {
+    public static void storeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
         int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
 
@@ -152,7 +149,7 @@ public class Controller {
         ));
 
         // this should be always equal to r, but just in case
-        ArrayList<NetworkController.DstoreThread> dstoresToBeUsed = new ArrayList<>(activeDstores.stream().limit(r).toList());
+        List<NetworkController.DstoreThread> dstoresToBeUsed = getRActiveDstoresSorted();
 
         StringBuilder ports = new StringBuilder();
 
@@ -185,6 +182,9 @@ public class Controller {
             });
         }
 
+        // send the ports of those dstores to the client
+        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
+
         ExecutorService watchdog = Executors.newSingleThreadExecutor();
         watchdog.submit(() -> {
             while (true) {
@@ -201,11 +201,6 @@ public class Controller {
                 }
             }
         });
-
-        Thread.sleep(500);
-
-        // send the ports of those dstores to the client
-        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
     }
 
     public static void loadOp(Message msg, Integer i) {
@@ -225,7 +220,7 @@ public class Controller {
         }
     }
 
-    public static void removeOp(Message msg) throws InterruptedException {
+    public static void removeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
 
         index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
@@ -254,6 +249,11 @@ public class Controller {
             });
         }
 
+        // get all the dstores
+        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
+            dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
+        }
+
         ExecutorService watchdog = Executors.newSingleThreadExecutor();
         watchdog.submit(() -> {
             while (true) {
@@ -271,13 +271,6 @@ public class Controller {
                 }
             }
         });
-
-        Thread.sleep(500);
-
-        // get all the dstores
-        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
-            dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
-        }
     }
 
     public static void listOp(Message msg) {
@@ -302,6 +295,11 @@ public class Controller {
         // call rebalance here
     }
 
+
+    /**
+     * Removes a Dstore from every entry in the index
+     * @param dstore dstore to be removed from the system
+     */
     public static void removeDstore(NetworkController.DstoreThread dstore) {
 
         for (FileProperties fp : index.values()) {
@@ -311,5 +309,36 @@ public class Controller {
         }
 
         activeDstores.remove(dstore);
+    }
+
+    public static List<NetworkController.DstoreThread> getRActiveDstoresSorted() {
+
+        HashMap<NetworkController.DstoreThread, Integer> dstoresToNFiles = new HashMap<>();
+
+        // add dstores in the index (i.e. storing at least one file)
+        for (FileProperties fp : index.values()) {
+            for (NetworkController.DstoreThread dstore : fp.getDstores()) {
+                if (dstoresToNFiles.containsKey(dstore)) {
+                    dstoresToNFiles.put(dstore, dstoresToNFiles.get(dstore) + 1);
+                } else {
+                    dstoresToNFiles.put(dstore, 1);
+                }
+            }
+        }
+
+        // add dstores in activeDstores, but not in the index (i.e. storing no files)
+        // this should have the highest priority
+        for (NetworkController.DstoreThread dstore : activeDstores) {
+            if (!dstoresToNFiles.containsKey(dstore)) {
+                dstoresToNFiles.put(dstore, 0);
+            }
+        }
+
+        return dstoresToNFiles
+                .keySet()
+                .stream()
+                .sorted(Comparator.comparing(dstoresToNFiles::get))
+                .limit(r)
+                .toList();
     }
 }

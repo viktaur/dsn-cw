@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 
@@ -16,10 +17,23 @@ public class ConnectionThread {
 
     public void communicate(String message) {
         out.println(message);
+//        ControllerLogger.getInstance().messageSent(socket.getPort(), message);
         System.out.println("Sending: " + message);
     }
 
     public Socket getSocket() {
         return socket;
+    }
+
+    public void closeConnection() throws IOException {
+        this.socket.close();
+    }
+
+    public void writeData(byte[] data) throws IOException {
+        this.socket.getOutputStream().write(data);
+    }
+
+    public int readData(byte[] data, int off, int len) throws IOException {
+        return this.socket.getInputStream().readNBytes(data, off, len);
     }
 }

@@ -142,6 +142,7 @@ public class NetworkController implements Runnable {
             try {
                 String msg;
 
+                // loop that reads from a dstore
                 while ((msg = in.readLine()) != null) {
                     System.out.println("Received from Dstore: " + msg);
                     String fileName = msg.split(" ")[1];
