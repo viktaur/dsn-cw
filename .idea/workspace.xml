@@ -5,10 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/ControllerLogger.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/to_store/file1.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/to_store/file2.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/to_store/file3.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ClientMain.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ClientMain.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ControllerLogger.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ControllerLogger.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
     </list>
@@ -78,6 +81,9 @@
       <recent name="$PROJECT_DIR$" />
     </key>
     <key name="CreateTestDialog.RecentsKey">
+      <recent name="" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
       <recent name="" />
     </key>
   </component>
@@ -180,7 +186,7 @@
       <workItem from="1684155181385" duration="21000" />
       <workItem from="1684155210153" duration="13640000" />
       <workItem from="1684181252532" duration="5328000" />
-      <workItem from="1684243418672" duration="24922000" />
+      <workItem from="1684243418672" duration="31442000" />
     </task>
     <servers />
   </component>

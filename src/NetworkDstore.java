@@ -123,7 +123,6 @@ public class NetworkDstore implements Runnable {
                 }
             } catch (Exception e) {
                 System.err.println("Could not read message from Controller");
-                throw new RuntimeException(e); // this should stop the dstore program?
             }
         }
     }

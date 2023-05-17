@@ -139,7 +139,7 @@ public class Controller {
         return true;
     }
 
-    public static void storeOp(Message msg) {
+    public static void storeOp(Message msg) throws InterruptedException {
         String fileName = msg.getContent().split(" ")[1];
         int fileSize = Integer.parseInt(msg.getContent().split(" ")[2]);
 
@@ -156,37 +156,37 @@ public class Controller {
 
         StringBuilder ports = new StringBuilder();
 
-        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
+        for (NetworkController.DstoreThread dstore : dstoresToBeUsed) {
             ports.append(dstore.getPort()).append(" ");
         }
 
         // service that will start a timeout on each dstore and update the index & communicate STORE_COMPLETE
         // to the client if successful.
-        ExecutorService handleStoreAcks = Executors.newSingleThreadExecutor();
-        handleStoreAcks.submit(() -> {
 
-            CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
-            AtomicBoolean timeoutHappened = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
+        AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
-            ExecutorService timeoutThreads = Executors.newFixedThreadPool(dstoresToBeUsed.size());
-            for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
-                timeoutThreads.submit(() -> {
-                    try {
-                        // we call this method to set a timeout for receiving the STORE_ACKs
-                        dstore.startStoreTimeout(fileName, timeout);
-                    } catch (TimeoutException e) {
-                        timeoutHappened.set(true);
-                        ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
-                        ControllerLogger.getInstance().storeToDstoreFailed(fileName, dstore.getPort());
-                        return;
-                    }
+        ExecutorService handleStoreAcks = Executors.newFixedThreadPool(dstoresToBeUsed.size());
+        for (NetworkController.DstoreThread dstore : dstoresToBeUsed) {
+            handleStoreAcks.submit(() -> {
+                try {
+                    // we call this method to set a timeout for receiving the STORE_ACKs
+                    dstore.startStoreTimeout(fileName, timeout);
+                } catch (TimeoutException e) {
+                    timeoutHappened.set(true);
+                    ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
+                    ControllerLogger.getInstance().storeToDstoreFailed(fileName, dstore.getPort());
+                    return;
+                }
 
-                    index.get(fileName).addDstore(dstore);
-                    latch.countDown();
-                    ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
-                });
-            }
+                index.get(fileName).addDstore(dstore);
+                latch.countDown();
+                ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
+            });
+        }
 
+        ExecutorService watchdog = Executors.newSingleThreadExecutor();
+        watchdog.submit(() -> {
             while (true) {
                 if (timeoutHappened.get()) {
                     index.remove(fileName);
@@ -200,9 +200,9 @@ public class Controller {
                     break;
                 }
             }
-
-            timeoutThreads.shutdown();
         });
+
+        Thread.sleep(500);
 
         // send the ports of those dstores to the client
         msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
@@ -225,7 +225,7 @@ public class Controller {
         }
     }
 
-    public static void removeOp(Message msg) {
+    public static void removeOp(Message msg) throws InterruptedException {
         String fileName = msg.getContent().split(" ")[1];
 
         index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
@@ -233,45 +233,46 @@ public class Controller {
         // this should be always equal to r, but just in case
         int nDstores = index.get(fileName).getDstores().size();
 
-        ExecutorService handleRemoveAcks = Executors.newSingleThreadExecutor();
-        handleRemoveAcks.submit(() -> {
-            CountDownLatch latch = new CountDownLatch(nDstores);
-            AtomicBoolean timeoutHappened = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(nDstores);
+        AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
-            ExecutorService timeoutThreads = Executors.newFixedThreadPool(nDstores);
-            for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
-                timeoutThreads.submit(() -> {
-                    try {
-                        dstore.startRemoveTimeout(fileName, timeout);
-                    } catch (TimeoutException e) {
-                        timeoutHappened.set(true);
-                        System.err.println("Remove ack timeout happened");
-                        e.printStackTrace();
-                        return;
-                    }
-
-                    index.get(fileName).removeDstore(dstore);
-                    latch.countDown();
-                });
-
-                while (true) {
-                    if (timeoutHappened.get()) {
-                        // we will not update the file status, it should stay as REMOVE_IN_PROGRESS
-                        System.err.println("Remove op failed: " + fileName);
-                        break;
-                    }
-
-                    if (latch.getCount() == 0) {
-                        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
-                        msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN); // do we need to remove it from index?
-                        System.out.println("Remove op completed: " + fileName);
-                        break;
-                    }
+        ExecutorService handleRemoveAcks = Executors.newFixedThreadPool(nDstores);
+        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
+            handleRemoveAcks.submit(() -> {
+                try {
+                    dstore.startRemoveTimeout(fileName, timeout);
+                } catch (TimeoutException e) {
+                    timeoutHappened.set(true);
+                    ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
+                    ControllerLogger.getInstance().removeFailed(fileName);
+                    return;
                 }
 
-                timeoutThreads.shutdown();
+                index.get(fileName).removeDstore(dstore);
+                latch.countDown();
+                ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
+            });
+        }
+
+        ExecutorService watchdog = Executors.newSingleThreadExecutor();
+        watchdog.submit(() -> {
+            while (true) {
+                if (timeoutHappened.get()) {
+                    // we will not update the file status, it should stay as REMOVE_IN_PROGRESS
+                    ControllerLogger.getInstance().removeFailed(fileName);
+                    break;
+                }
+
+                if (latch.getCount() == 0) {
+                    index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
+                    msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN); // do we need to remove it from index?
+                    ControllerLogger.getInstance().removeComplete(fileName);
+                    break;
+                }
             }
         });
+
+        Thread.sleep(500);
 
         // get all the dstores
         for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {

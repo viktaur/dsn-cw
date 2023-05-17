@@ -178,7 +178,6 @@ public class NetworkController implements Runnable {
                     return;
                 }
                 elapsedTime = (new Date()).getTime() - startTime;
-                // might add Thread.sleep here
             }
 
             throw new TimeoutException();

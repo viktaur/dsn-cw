@@ -39,6 +39,10 @@ public class ControllerLogger extends Logger {
         this.log("Store of file " + filename + " to Dstore " + dstorePort + " successfully completed");
     }
 
+    public void removeFromDstoreCompleted(String filename, int dstorePort) {
+        this.log("Remove of file " + filename + " from Dstore " + dstorePort + " successfully completed");
+    }
+
     public void storeCompleted(String filename) {
         this.log("Store operation for file " + filename + " completed");
     }

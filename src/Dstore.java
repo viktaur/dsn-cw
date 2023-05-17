@@ -59,7 +59,8 @@ public class Dstore {
                 try {
                     handleMessage(msgInfo);
                 } catch (Exception e) {
-                    System.err.println("Could not handle message: " + e);
+                    System.err.println("Could not handle message " + msgInfo.getContent());
+                    e.printStackTrace();
                 }
             }
         }
@@ -82,6 +83,7 @@ public class Dstore {
         ExecutorService executorService = Executors.newSingleThreadExecutor();
         executorService.submit(new StoreThread(msg));
 
+        // we tell the client that we're ready to receive the data
         msg.getSender().communicate(Protocol.ACK_TOKEN);
     }
 
@@ -101,6 +103,7 @@ public class Dstore {
                 }
             } catch (IOException e) {
                 System.err.println("Could not load file");
+                e.printStackTrace();
             }
         });
     }
@@ -118,6 +121,7 @@ public class Dstore {
                 dstoreListener.fileRemoved(fileName);
             } catch (IOException e) {
                 System.err.println("Could not remove file");
+                e.printStackTrace();
             }
         });
     }
@@ -155,6 +159,7 @@ public class Dstore {
                 Files.write(file.toPath(), data);
             } catch (IOException e) {
                 System.err.println("Could not store file");
+                e.printStackTrace();
             }
 
             // tell the controller that we're done
