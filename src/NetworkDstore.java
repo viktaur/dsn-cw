@@ -33,16 +33,17 @@ public class NetworkDstore implements Runnable {
 
     @Override
     public void run() {
+        Socket socketToController;
         try {
             // Create a new socket to cport (the Controller) and set the timeout
-            Socket socket = new Socket(InetAddress.getLoopbackAddress(), cport);
+            socketToController = new Socket(InetAddress.getLoopbackAddress(), cport);
 
             // Initialise I/O
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socketToController.getInputStream()));
+            PrintWriter out = new PrintWriter(socketToController.getOutputStream(), true);
 
             // Start a new thread that will take care of the Controller connection
-            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks));
+            Thread controllerConnection = new Thread(new ControllerThread(socketToController, in, out, port, tasks));
             controllerConnection.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -54,7 +55,7 @@ public class NetworkDstore implements Runnable {
             // we are constantly accepting new connections from clients
             while (true) {
                 try {
-                    Socket client = ss.accept();
+                    Socket client = ss.accept(); // this will block until new client connects
                     BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                     PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
@@ -122,6 +123,7 @@ public class NetworkDstore implements Runnable {
                 }
             } catch (Exception e) {
                 System.err.println("Could not read message from Controller");
+                throw new RuntimeException(e); // this should stop the dstore program?
             }
         }
     }

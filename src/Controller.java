@@ -1,4 +1,4 @@
-import java.io.File;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,15 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Controller {
 
-    /**
-     * Set consisting of the active threads that are listening to dstores
-     */
-    protected static final HashSet<NetworkController.DstoreThread> activeDstores = new HashSet<>();
-
-    /**
-     * Set mapping each file with its properties (size, status, and dstores that have it)
-     */
-    protected static final ConcurrentHashMap<String, FileProperties> index = new ConcurrentHashMap<>();
 
     /**
      * Port at which the server socket will be listening for incoming client and dstore connections
@@ -38,6 +29,16 @@ public class Controller {
     protected static int rebalancePeriod;
 
     /**
+     * Set consisting of the active threads that are listening to dstores
+     */
+    protected static final HashSet<NetworkController.DstoreThread> activeDstores = new HashSet<>();
+
+    /**
+     * Set mapping each file with its properties (size, status, and dstores that have it)
+     */
+    protected static final ConcurrentHashMap<String, FileProperties> index = new ConcurrentHashMap<>();
+
+    /**
      * Messages received from the connection threads that need to be handled
      */
     protected static final ConcurrentLinkedQueue<Message> tasks = new ConcurrentLinkedQueue<>();
@@ -47,16 +48,14 @@ public class Controller {
      */
     protected static final HashMap<Message, Integer> currentLoadOps = new HashMap<>();
 
-    /**
-     * Remove operations that have not yet been completed
-     */
-    protected static final HashMap<Message, CountDownLatch> currentRemoveOps = new HashMap<>();
-
     public static void main(String[] args) {
+
+        // init logger
+        ControllerLogger.init(Logger.LoggingType.ON_TERMINAL_ONLY);
 
         cport = Integer.parseInt(args[0]);
         r = Integer.parseInt(args[1]);
-        timeout = Integer.parseInt(args[2]); //TODO: Do something with timeout
+        timeout = Integer.parseInt(args[2]);
         rebalancePeriod = Integer.parseInt(args[3]);
 
         // We start a thread that will constantly listen to all incoming connections
@@ -72,7 +71,7 @@ public class Controller {
                 try {
                     handleMessage(msgInfo);
                 } catch (Exception e) {
-                    System.err.println("Could not handle message: " + e);
+                    ControllerLogger.getInstance().couldNotHandleMessage(msgInfo.getContent());
                 }
             }
         }
@@ -149,11 +148,11 @@ public class Controller {
         index.put(fileName, new FileProperties(
                 fileSize,
                 FileProperties.FileStatus.STORE_IN_PROGRESS,
-                new ArrayList<>(activeDstores.stream().limit(r).toList())
+                new ArrayList<>()
         ));
 
         // this should be always equal to r, but just in case
-        int nDstores = index.get(fileName).getDstores().size();
+        ArrayList<NetworkController.DstoreThread> dstoresToBeUsed = new ArrayList<>(activeDstores.stream().limit(r).toList());
 
         StringBuilder ports = new StringBuilder();
 
@@ -166,37 +165,38 @@ public class Controller {
         ExecutorService handleStoreAcks = Executors.newSingleThreadExecutor();
         handleStoreAcks.submit(() -> {
 
-            CountDownLatch latch = new CountDownLatch(nDstores);
+            CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
             AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
-            ExecutorService timeoutThreads = Executors.newFixedThreadPool(nDstores);
-            for (NetworkController.DstoreThread dstoreThread : index.get(fileName).getDstores()) {
+            ExecutorService timeoutThreads = Executors.newFixedThreadPool(dstoresToBeUsed.size());
+            for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
                 timeoutThreads.submit(() -> {
                     try {
                         // we call this method to set a timeout for receiving the STORE_ACKs
-                        dstoreThread.startStoreTimeout(fileName, timeout);
+                        dstore.startStoreTimeout(fileName, timeout);
                     } catch (TimeoutException e) {
                         timeoutHappened.set(true);
-                        System.err.println("Store ack timeout happened");
-                        e.printStackTrace();
+                        ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
+                        ControllerLogger.getInstance().storeToDstoreFailed(fileName, dstore.getPort());
                         return;
                     }
 
+                    index.get(fileName).addDstore(dstore);
                     latch.countDown();
+                    ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
                 });
             }
 
             while (true) {
                 if (timeoutHappened.get()) {
                     index.remove(fileName);
-                    System.err.println("Store op failed: " + fileName);
                     break;
                 }
 
                 if (latch.getCount() == 0) {
                     index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
                     msg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
-                    System.out.println("Store op completed: " + fileName);
+                    ControllerLogger.getInstance().storeCompleted(fileName);
                     break;
                 }
             }
@@ -239,10 +239,10 @@ public class Controller {
             AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
             ExecutorService timeoutThreads = Executors.newFixedThreadPool(nDstores);
-            for (NetworkController.DstoreThread dstoreThread : index.get(fileName).getDstores()) {
+            for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
                 timeoutThreads.submit(() -> {
                     try {
-                        dstoreThread.startRemoveTimeout(fileName, timeout);
+                        dstore.startRemoveTimeout(fileName, timeout);
                     } catch (TimeoutException e) {
                         timeoutHappened.set(true);
                         System.err.println("Remove ack timeout happened");
@@ -250,6 +250,7 @@ public class Controller {
                         return;
                     }
 
+                    index.get(fileName).removeDstore(dstore);
                     latch.countDown();
                 });
 

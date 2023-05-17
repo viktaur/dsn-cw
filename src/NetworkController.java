@@ -48,17 +48,9 @@ public class NetworkController implements Runnable {
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-                    String firstMessage = in.readLine();
-
-                    // decide whether to spawn a dstore or a client thread
-                    if (firstMessage.startsWith(Protocol.JOIN_TOKEN)) {
-                        int port = Integer.parseInt(firstMessage.split(" ")[1]);
-                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, tasks, in, out));
-                        dstoreThread.start();
-                    } else {
-                        Thread clientThread = new Thread(new ClientThread(socket, tasks, in, out));
-                        clientThread.start();
-                    }
+                    // every dstore connection is a client until proven otherwise
+                    Thread clientThread = new Thread(new ClientThread(socket, tasks, in, out));
+                    clientThread.start();
 
                 } catch (Exception e) {
                     System.err.println("error: " + e);
@@ -95,6 +87,16 @@ public class NetworkController implements Runnable {
                 String msg;
 
                 while ((msg = in.readLine()) != null) {
+
+                    // if any message starts with JOIN, we will start a new dstore thread and interrupt the current client one
+                    if (msg.startsWith(Protocol.JOIN_TOKEN)) {
+                        int port = Integer.parseInt(msg.split(" ")[1]);
+                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, tasks, in, out));
+                        dstoreThread.start();
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+
                     System.out.println("Received from client: " + msg);
                     tasks.add(new Message(msg, this));
                 }
@@ -148,9 +150,9 @@ public class NetworkController implements Runnable {
                         storeAcks.add(fileName);
                      } else if (msg.startsWith(Protocol.REMOVE_ACK_TOKEN)) {
                          removeAcks.add(fileName);
+                     } else {
+                         tasks.add(new Message(msg, this));
                      }
-
-                    tasks.add(new Message(msg, this));
                 }
             } catch (IOException e) {
                 System.err.println("Could not read message from Dstore");

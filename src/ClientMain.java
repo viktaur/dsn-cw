@@ -9,7 +9,7 @@ import java.util.Random;
  */
 public class ClientMain {
 
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
 
         final int cport = Integer.parseInt(args[0]);
         int timeout = Integer.parseInt(args[1]);
