@@ -157,12 +157,16 @@ public class Controller {
             ports.append(dstore.getPort()).append(" ");
         }
 
-        // service that will start a timeout on each dstore and update the index & communicate STORE_COMPLETE
-        // to the client if successful.
+
+
+        // send the ports of those dstores to the client
+        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
 
         CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
         AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
+        // service that will start a timeout on each dstore and update the index & communicate STORE_COMPLETE
+        // to the client if successful.
         ExecutorService handleStoreAcks = Executors.newFixedThreadPool(dstoresToBeUsed.size());
         for (NetworkController.DstoreThread dstore : dstoresToBeUsed) {
             handleStoreAcks.submit(() -> {
@@ -181,9 +185,6 @@ public class Controller {
                 ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
             });
         }
-
-        // send the ports of those dstores to the client
-        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
 
         ExecutorService watchdog = Executors.newSingleThreadExecutor();
         watchdog.submit(() -> {

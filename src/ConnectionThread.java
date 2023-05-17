@@ -18,7 +18,7 @@ public class ConnectionThread {
     public void communicate(String message) {
         out.println(message);
 //        ControllerLogger.getInstance().messageSent(socket.getPort(), message);
-        System.out.println("Sending: " + message);
+        System.out.println("Sending: " + message + " (to port " + socket.getPort() + ")");
     }
 
     public Socket getSocket() {

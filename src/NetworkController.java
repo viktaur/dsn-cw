@@ -176,12 +176,14 @@ public class NetworkController implements Runnable {
             while (elapsedTime < timeout) {
                 if (acks.contains(fileName)) {
                     acks.remove(fileName);
-                    return;
+                    break;
                 }
                 elapsedTime = (new Date()).getTime() - startTime;
             }
 
-            throw new TimeoutException();
+            if (((new Date()).getTime() - startTime) > timeout) {
+                throw new TimeoutException();
+            }
         }
     }
 }
