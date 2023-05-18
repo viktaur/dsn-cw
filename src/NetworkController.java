@@ -162,11 +162,11 @@ public class NetworkController implements Runnable {
         }
 
         public void startStoreTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, removeAcks);
+            timeout(fileName, timeout, storeAcks);
         }
 
         public void startRemoveTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, storeAcks);
+            timeout(fileName, timeout, removeAcks);
         }
 
         public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
@@ -178,6 +178,13 @@ public class NetworkController implements Runnable {
                     acks.remove(fileName);
                     break;
                 }
+
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+
+                }
+
                 elapsedTime = (new Date()).getTime() - startTime;
             }
 

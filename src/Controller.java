@@ -43,7 +43,7 @@ public class Controller {
     /**
      * Load operations that have not yet been completed
      */
-    protected static final HashMap<String, Integer> fileIndexToBeLoad = new HashMap<>();
+    protected static final HashMap<ConnectionThread, HashMap<String, Integer>> fileIndexToBeLoad = new HashMap<>();
 
     public static void main(String[] args) {
 
@@ -61,14 +61,14 @@ public class Controller {
 
         // This is the main execution loop
         while (true) {
-            Message msgInfo = tasks.poll();
+            Message msg = tasks.poll();
 
-            if (msgInfo != null) {
+            if (msg != null) {
 
                 try {
-                    handleMessage(msgInfo);
+                    handleMessage(msg);
                 } catch (Exception e) {
-                    ControllerLogger.getInstance().couldNotHandleMessage(msgInfo.getContent());
+                    ControllerLogger.getInstance().couldNotHandleMessage(msg.getContent());
                 }
             }
         }
@@ -84,7 +84,7 @@ public class Controller {
         if (msg.getContent().startsWith(Protocol.STORE_TOKEN)) {
             if (canPerformStoreOp(msg))  storeOp(msg);
         } else if (msg.getContent().startsWith(Protocol.LOAD_TOKEN)) {
-            if (canPerformRemoveLoadOp(msg)) loadOp(msg);
+            if (canPerformRemoveLoadOp(msg))  loadOp(msg);
         } else if (msg.getContent().startsWith(Protocol.REMOVE_TOKEN)) {
             if (canPerformRemoveLoadOp(msg))  removeOp(msg);
         } else if (msg.getContent().equals(Protocol.LIST_TOKEN)) {
@@ -121,10 +121,12 @@ public class Controller {
             msg.getSender().communicate(Protocol.ERROR_NOT_ENOUGH_DSTORES_TOKEN);
             return false;
         }
-        if ((index.get(fileName) == null) || (index.get(fileName).storeIsInProgress()) || (index.get(fileName).removeIsInProgress())) {
+
+        if (((index.get(fileName)) != null) && (!index.get(fileName).storeIsCompleted())) {
             msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
             return false;
         }
+
         return true;
     }
 
@@ -158,7 +160,7 @@ public class Controller {
         }
 
         // send the ports of those dstores to the client
-        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
+        msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports.toString().trim());
 
         CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
         AtomicBoolean timeoutHappened = new AtomicBoolean(false);
@@ -203,13 +205,25 @@ public class Controller {
     }
 
     public static void loadOp(Message msg) {
+
         String fileName = msg.getContent().split(" ")[1];
-        fileIndexToBeLoad.put(fileName, 0);
+
+        if (!fileIndexToBeLoad.containsKey(msg.getSender())) {
+            fileIndexToBeLoad.put(msg.getSender(), new HashMap<>());
+        }
+
+        fileIndexToBeLoad.get(msg.getSender()).put(fileName, 0);
+
+        load(msg, 0);
     }
+
     public static void handleReload(Message msg) {
+
         String fileName = msg.getContent().split(" ")[1];
-        fileIndexToBeLoad.put(fileName, fileIndexToBeLoad.get(fileName) + 1);
-        load(msg, fileIndexToBeLoad.get(fileName));
+        int currentIndex = fileIndexToBeLoad.get(msg.getSender()).get(fileName);
+
+        fileIndexToBeLoad.get(msg.getSender()).put(fileName, currentIndex + 1);
+        load(msg, currentIndex + 1);
     }
 
     public static void load(Message msg, int i) {
@@ -229,7 +243,11 @@ public class Controller {
     public static void removeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
 
-        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
+        try {
+            index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
+        } catch (NullPointerException e) {
+            msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
+        }
 
         // tell all the dstores to remove a file
         for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
@@ -272,6 +290,7 @@ public class Controller {
                 if (latch.getCount() == 0) {
                     index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
                     msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN); // do we need to remove it from index?
+                    index.remove(fileName);
                     ControllerLogger.getInstance().removeComplete(fileName);
                     break;
                 }
@@ -288,7 +307,7 @@ public class Controller {
             }
         }
 
-        msg.getSender().communicate(Protocol.LIST_TOKEN + " " + fileList);
+        msg.getSender().communicate(Protocol.LIST_TOKEN + " " + fileList.toString().trim());
     }
 
     public static void addDstore(NetworkController.DstoreThread dstore) {

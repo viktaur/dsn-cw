@@ -5,10 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Logger.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/m2/file1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/m2/file2.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -85,7 +86,7 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.ClientMain">
+  <component name="RunManager">
     <configuration name="ClientMain" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="ClientMain" />
       <module name="dsn-cw" />
@@ -211,6 +212,7 @@
       <workItem from="1684181252532" duration="5328000" />
       <workItem from="1684243418672" duration="31442000" />
       <workItem from="1684327458020" duration="32436000" />
+      <workItem from="1684411206124" duration="8640000" />
     </task>
     <servers />
   </component>
@@ -227,8 +229,18 @@
           <properties class="java.net.SocketTimeoutException" package="java.net" />
           <option name="timeStamp" value="9" />
         </breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/Controller.java</url>
+          <line>88</line>
+          <option name="timeStamp" value="19" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
+    <pin-to-top-manager>
+      <pinned-members>
+        <PinnedItemInfo parentTag="Message" memberName="content" />
+      </pinned-members>
+    </pin-to-top-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
