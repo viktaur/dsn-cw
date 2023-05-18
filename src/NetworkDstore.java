@@ -33,16 +33,17 @@ public class NetworkDstore implements Runnable {
 
     @Override
     public void run() {
+        Socket socketToController;
         try {
             // Create a new socket to cport (the Controller) and set the timeout
-            Socket socket = new Socket(InetAddress.getLoopbackAddress(), cport);
+            socketToController = new Socket(InetAddress.getLoopbackAddress(), cport);
 
             // Initialise I/O
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socketToController.getInputStream()));
+            PrintWriter out = new PrintWriter(socketToController.getOutputStream(), true);
 
             // Start a new thread that will take care of the Controller connection
-            Thread controllerConnection = new Thread(new ControllerThread(socket, in, out, port, tasks));
+            Thread controllerConnection = new Thread(new ControllerThread(socketToController, in, out, port, tasks));
             controllerConnection.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -54,7 +55,11 @@ public class NetworkDstore implements Runnable {
             // we are constantly accepting new connections from clients
             while (true) {
                 try {
-                    Socket client = ss.accept();
+                    Socket client = ss.accept(); // this will block until new client connects
+
+                    // set socket timeout
+                    client.setSoTimeout(timeout);
+
                     BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                     PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
@@ -104,6 +109,11 @@ public class NetworkDstore implements Runnable {
                 public void fileRemoved(String fileName) {
                     ct.communicate(Protocol.REMOVE_ACK_TOKEN + " " + fileName);
                 }
+
+                @Override
+                public void errorFileDoesNotExist(String fileName) {
+                    ct.communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName);
+                }
             };
 
             Dstore.setDstoreListener(this.dstoreListener);
@@ -117,7 +127,7 @@ public class NetworkDstore implements Runnable {
             String msg;
             try {
                 while ((msg = in.readLine()) != null) {
-                    System.out.println("Received from controller: " + msg);
+                    System.out.println("Received from Controller: " + msg);
                     tasks.add(new Message(msg, this));
                 }
             } catch (Exception e) {
@@ -137,13 +147,24 @@ public class NetworkDstore implements Runnable {
 
         @Override
         public void run() {
+
             String msg;
+
             try {
+                // it should only run once, for the STORE or LOAD command
                 while ((msg = in.readLine()) != null) {
-                    System.out.println("Received from controller: " + msg);
-                    tasks.add(new Message(msg, this));
+
+                    // we will ensure it's a STORE or LOAD command
+                    if ((msg.startsWith(Protocol.STORE_TOKEN)) || (msg.startsWith(Protocol.LOAD_TOKEN))) {
+                        System.out.println("Received from Client: " + msg);
+                        tasks.add(new Message(msg, this));
+                        break;
+                    }
                 }
-            } catch (Exception e) {
+
+                // we will close the BufferedReader, as we will no longer need it
+//                in.close();
+            } catch (IOException e) {
                 System.err.println("Could not read message from Client");
             }
         }

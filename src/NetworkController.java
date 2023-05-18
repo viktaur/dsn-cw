@@ -48,17 +48,9 @@ public class NetworkController implements Runnable {
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-                    String firstMessage = in.readLine();
-
-                    // decide whether to spawn a dstore or a client thread
-                    if (firstMessage.startsWith(Protocol.JOIN_TOKEN)) {
-                        int port = Integer.parseInt(firstMessage.split(" ")[1]);
-                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, tasks, in, out));
-                        dstoreThread.start();
-                    } else {
-                        Thread clientThread = new Thread(new ClientThread(socket, tasks, in, out));
-                        clientThread.start();
-                    }
+                    // every dstore connection is a client until proven otherwise
+                    Thread clientThread = new Thread(new ClientThread(socket, tasks, in, out));
+                    clientThread.start();
 
                 } catch (Exception e) {
                     System.err.println("error: " + e);
@@ -95,6 +87,16 @@ public class NetworkController implements Runnable {
                 String msg;
 
                 while ((msg = in.readLine()) != null) {
+
+                    // if any message starts with JOIN, we will start a new dstore thread and interrupt the current client one
+                    if (msg.startsWith(Protocol.JOIN_TOKEN)) {
+                        int port = Integer.parseInt(msg.split(" ")[1]);
+                        Thread dstoreThread = new Thread(new DstoreThread(socket, port, tasks, in, out));
+                        dstoreThread.start();
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+
                     System.out.println("Received from client: " + msg);
                     tasks.add(new Message(msg, this));
                 }
@@ -140,6 +142,7 @@ public class NetworkController implements Runnable {
             try {
                 String msg;
 
+                // loop that reads from a dstore
                 while ((msg = in.readLine()) != null) {
                     System.out.println("Received from Dstore: " + msg);
                     String fileName = msg.split(" ")[1];
@@ -148,9 +151,9 @@ public class NetworkController implements Runnable {
                         storeAcks.add(fileName);
                      } else if (msg.startsWith(Protocol.REMOVE_ACK_TOKEN)) {
                          removeAcks.add(fileName);
+                     } else {
+                         tasks.add(new Message(msg, this));
                      }
-
-                    tasks.add(new Message(msg, this));
                 }
             } catch (IOException e) {
                 System.err.println("Could not read message from Dstore");
@@ -158,28 +161,44 @@ public class NetworkController implements Runnable {
             }
         }
 
-        public void startStoreTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, removeAcks);
-        }
-
-        public void startRemoveTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, storeAcks);
-        }
-
-        public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
-            long startTime = System.currentTimeMillis();
-            long elapsedTime = 0L;
-
-            while (elapsedTime < timeout) {
-                if (acks.contains(fileName)) {
-                    acks.remove(fileName);
-                    return;
+        public void awaitForStoreAcks(String fileName) {
+            while (true) {
+                if (storeAcks.remove(fileName)) {
+                    break;
                 }
-                elapsedTime = (new Date()).getTime() - startTime;
-                // might add Thread.sleep here
             }
-
-            throw new TimeoutException();
         }
+
+        public void awaitForRemoveAcks(String fileName) {
+            while (true) {
+                if (removeAcks.remove(fileName)) {
+                    break;
+                }
+            }
+        }
+
+//        public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
+//            long startTime = System.currentTimeMillis();
+//            long elapsedTime = 0L;
+//
+//            while (elapsedTime < timeout) {
+//                if (acks.contains(fileName)) {
+//                    acks.remove(fileName);
+//                    break;
+//                }
+//
+//                try {
+//                    Thread.sleep(10);
+//                } catch (InterruptedException e) {
+//
+//                }
+//
+//                elapsedTime = (new Date()).getTime() - startTime;
+//            }
+//
+//            if (((new Date()).getTime() - startTime) > timeout) {
+//                throw new TimeoutException();
+//            }
+//        }
     }
 }

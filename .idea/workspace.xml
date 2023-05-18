@@ -6,10 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/downloads/file1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/downloads/file2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/m1/file2.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FileProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileProperties.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,13 +21,16 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="JUnit5 Test Class" />
-        <option value="Class" />
         <option value="Interface" />
+        <option value="Class" />
       </list>
     </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="jar://$USER_HOME$/Downloads/comp2207-2223-client-1.0.0/client.jar!/Client.class" root0="SKIP_INSPECTION" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="uzniidb7" />
@@ -79,27 +83,81 @@
     <key name="CreateTestDialog.RecentsKey">
       <recent name="" />
     </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="" />
+    </key>
   </component>
-  <component name="RunManager" selected="Application.ClientMain">
+  <component name="RunManager" selected="Application.Controller">
     <configuration name="ClientMain" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="ClientMain" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="3000 10000" />
+      <option name="PROGRAM_PARAMETERS" value="3000 30000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Dstore" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="Dstore" />
+    <configuration name="Controller" type="Application" factoryName="Application" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="Controller" />
       <module name="dsn-cw" />
+      <option name="PROGRAM_PARAMETERS" value="3000 2 30000 10" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
+    </configuration>
+    <configuration name="Dstore1" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="dsn-cw" />
+      <option name="PROGRAM_PARAMETERS" value="5556 3000 30000 &quot;m1&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstore2" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="dsn-cw" />
+      <option name="PROGRAM_PARAMETERS" value="5557 3000 30000 &quot;m2&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstore3" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="dsn-cw" />
+      <option name="PROGRAM_PARAMETERS" value="5558 3000 30000 &quot;m3&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstores" type="CompoundRunConfigurationType">
+      <toRun name="Dstore1" type="Application" />
+      <toRun name="Dstore2" type="Application" />
+      <toRun name="Dstore3" type="Application" />
+      <method v="2" />
     </configuration>
     <configuration name="All in dsn-cw" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="dsn-cw" />
       <option name="PACKAGE_NAME" value="" />
       <option name="TEST_OBJECT" value="package" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ClientMainTest.multipleClientsTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="dsn-cw" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="ClientMainTest" />
+      <option name="METHOD_NAME" value="multipleClientsTest" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ClientMainTest.singleClientTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="dsn-cw" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="ClientMainTest" />
+      <option name="METHOD_NAME" value="singleClientTest" />
+      <option name="TEST_OBJECT" value="method" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -114,22 +172,24 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ControllerTest.storeOpTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
-      <module name="dsn-cw" />
-      <option name="PACKAGE_NAME" value="" />
-      <option name="MAIN_CLASS_NAME" value="ControllerTest" />
-      <option name="METHOD_NAME" value="storeOpTest" />
-      <option name="TEST_OBJECT" value="method" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
+    <list>
+      <item itemvalue="Application.Controller" />
+      <item itemvalue="Application.Dstore1" />
+      <item itemvalue="Application.Dstore2" />
+      <item itemvalue="Application.Dstore3" />
+      <item itemvalue="Application.ClientMain" />
+      <item itemvalue="Compound.Dstores" />
+      <item itemvalue="JUnit.ClientMainTest.multipleClientsTest" />
+      <item itemvalue="JUnit.ClientMainTest.singleClientTest" />
+      <item itemvalue="JUnit.All in dsn-cw" />
+      <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="Application.ClientMain" />
+        <item itemvalue="JUnit.ClientMainTest.multipleClientsTest" />
+        <item itemvalue="JUnit.ClientMainTest.singleClientTest" />
         <item itemvalue="JUnit.All in dsn-cw" />
-        <item itemvalue="Application.Dstore" />
-        <item itemvalue="JUnit.ControllerTest.storeOpTest" />
         <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
       </list>
     </recent_temporary>
@@ -163,7 +223,9 @@
       <workItem from="1684155181385" duration="21000" />
       <workItem from="1684155210153" duration="13640000" />
       <workItem from="1684181252532" duration="5328000" />
-      <workItem from="1684243418672" duration="15482000" />
+      <workItem from="1684243418672" duration="31442000" />
+      <workItem from="1684327458020" duration="32436000" />
+      <workItem from="1684411206124" duration="19676000" />
     </task>
     <servers />
   </component>
@@ -177,11 +239,49 @@
     <breakpoint-manager>
       <breakpoints>
         <breakpoint enabled="true" type="java-exception">
-          <properties class="java.lang.RuntimeException" package="java.lang" />
-          <option name="timeStamp" value="2" />
+          <properties class="java.net.SocketTimeoutException" package="java.net" />
+          <option name="timeStamp" value="9" />
         </breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>27</line>
+          <option name="timeStamp" value="28" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>109</line>
+          <option name="timeStamp" value="31" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>31</line>
+          <properties>
+            <option name="lambda-ordinal" value="-1" />
+          </properties>
+          <option name="timeStamp" value="32" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>103</line>
+          <option name="timeStamp" value="34" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/Controller.java</url>
+          <line>146</line>
+          <option name="timeStamp" value="35" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/NetworkController.java</url>
+          <line>165</line>
+          <option name="timeStamp" value="37" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
+    <pin-to-top-manager>
+      <pinned-members>
+        <PinnedItemInfo parentTag="Message" memberName="content" />
+      </pinned-members>
+    </pin-to-top-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
