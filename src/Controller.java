@@ -168,56 +168,38 @@ public class Controller {
         msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports.toString().trim());
 
         CountDownLatch latch = new CountDownLatch(dstoresToBeUsed.size());
-        AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
         // service that will start a timeout on each dstore and update the index & communicate STORE_COMPLETE
         // to the client if successful.
         ExecutorService handleStoreAcks = Executors.newFixedThreadPool(dstoresToBeUsed.size());
         for (NetworkController.DstoreThread dstore : dstoresToBeUsed) {
             handleStoreAcks.submit(() -> {
-                try {
-                    // we call this method to set a timeout for receiving the STORE_ACKs
-                    dstore.startStoreTimeout(fileName, timeout);
-                } catch (TimeoutException e) {
-                    synchronized (timeoutHappened) {
-                        timeoutHappened.set(true);
-                    }
-                    ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
-                    ControllerLogger.getInstance().storeToDstoreFailed(fileName, dstore.getPort());
-                    return;
+                dstore.awaitForStoreAcks(fileName);
+
+//                synchronized (latch) {
+                    latch.countDown();
+//                }
+
+                synchronized (index) {
+                    index.get(fileName).addDstore(dstore);
                 }
-
-                if (!timeoutHappened.get()) {
-                    synchronized (index) {
-                        index.get(fileName).addDstore(dstore);
-                    }
-
-                    synchronized (latch) {
-                        latch.countDown();
-                    }
-
-                    ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
-                }
+                ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
             });
         }
 
-        ExecutorService watchdog = Executors.newSingleThreadExecutor();
-        watchdog.submit(() -> {
-            while (true) {
-                if (timeoutHappened.get()) {
-                    synchronized (index) {
-                        index.remove(fileName);
-                    }
-                    break;
-                }
-
-                if (latch.getCount() == 0) {
+        ExecutorService awaiter = Executors.newSingleThreadExecutor();
+        awaiter.submit(() -> {
+            try {
+                if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
                     synchronized (index) {
                         index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
                     }
                     msg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
                     ControllerLogger.getInstance().storeCompleted(fileName);
-                    break;
+                }
+            } catch (InterruptedException e) {
+                synchronized (index) {
+                    index.remove(fileName);
                 }
             }
         });
@@ -273,42 +255,27 @@ public class Controller {
         int nDstores = index.get(fileName).getDstores().size();
 
         CountDownLatch latch = new CountDownLatch(nDstores);
-        AtomicBoolean timeoutHappened = new AtomicBoolean(false);
 
         ExecutorService handleRemoveAcks = Executors.newFixedThreadPool(nDstores);
         for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
             handleRemoveAcks.submit(() -> {
-                try {
-                    dstore.startRemoveTimeout(fileName, timeout);
-                } catch (TimeoutException e) {
-                    synchronized (timeoutHappened) {
-                        timeoutHappened.set(true);
-                    }
-                    ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
-                    ControllerLogger.getInstance().removeFailed(fileName);
-                    return;
-                }
+                dstore.awaitForRemoveAcks(fileName);
 
-                if (!timeoutHappened.get()) {
+//                synchronized (latch) {
+                    latch.countDown();
+//                }
+
+                synchronized (index) {
                     index.get(fileName).removeDstore(dstore);
-                    synchronized (latch) {
-                        latch.countDown();
-                    }
-                    ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
                 }
+                ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
             });
         }
 
-        ExecutorService watchdog = Executors.newSingleThreadExecutor();
-        watchdog.submit(() -> {
-            while (true) {
-                if (timeoutHappened.get()) {
-                    // we will not update the file status, it should stay as REMOVE_IN_PROGRESS
-                    ControllerLogger.getInstance().removeFailed(fileName);
-                    break;
-                }
-
-                if (latch.getCount() == 0) {
+        ExecutorService awaiter = Executors.newSingleThreadExecutor();
+        awaiter.submit(() -> {
+            try {
+                if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
                     synchronized (index) {
                         index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
                     }
@@ -318,10 +285,10 @@ public class Controller {
                     synchronized (index) {
                         index.remove(fileName);
                     }
-
                     ControllerLogger.getInstance().removeComplete(fileName);
-                    break;
                 }
+            } catch (InterruptedException e) {
+                // Do nothing, we will leave it as REMOVE_IN_PROGRESS
             }
         });
     }

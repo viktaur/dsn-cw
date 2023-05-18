@@ -161,36 +161,44 @@ public class NetworkController implements Runnable {
             }
         }
 
-        public void startStoreTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, storeAcks);
-        }
-
-        public void startRemoveTimeout(String fileName, int timeout) throws TimeoutException {
-            timeout(fileName, timeout, removeAcks);
-        }
-
-        public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
-            long startTime = System.currentTimeMillis();
-            long elapsedTime = 0L;
-
-            while (elapsedTime < timeout) {
-                if (acks.contains(fileName)) {
-                    acks.remove(fileName);
+        public void awaitForStoreAcks(String fileName) {
+            while (true) {
+                if (storeAcks.remove(fileName)) {
                     break;
                 }
-
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-
-                }
-
-                elapsedTime = (new Date()).getTime() - startTime;
-            }
-
-            if (((new Date()).getTime() - startTime) > timeout) {
-                throw new TimeoutException();
             }
         }
+
+        public void awaitForRemoveAcks(String fileName) {
+            while (true) {
+                if (removeAcks.remove(fileName)) {
+                    break;
+                }
+            }
+        }
+
+//        public void timeout(String fileName, int timeout, ConcurrentLinkedQueue<String> acks) throws TimeoutException {
+//            long startTime = System.currentTimeMillis();
+//            long elapsedTime = 0L;
+//
+//            while (elapsedTime < timeout) {
+//                if (acks.contains(fileName)) {
+//                    acks.remove(fileName);
+//                    break;
+//                }
+//
+//                try {
+//                    Thread.sleep(10);
+//                } catch (InterruptedException e) {
+//
+//                }
+//
+//                elapsedTime = (new Date()).getTime() - startTime;
+//            }
+//
+//            if (((new Date()).getTime() - startTime) > timeout) {
+//                throw new TimeoutException();
+//            }
+//        }
     }
 }
