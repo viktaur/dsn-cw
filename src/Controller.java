@@ -43,7 +43,7 @@ public class Controller {
     /**
      * Load operations that have not yet been completed
      */
-    protected static final HashMap<Message, Integer> currentLoadOps = new HashMap<>();
+    protected static final HashMap<String, Integer> fileIndexToBeLoad = new HashMap<>();
 
     public static void main(String[] args) {
 
@@ -84,7 +84,7 @@ public class Controller {
         if (msg.getContent().startsWith(Protocol.STORE_TOKEN)) {
             if (canPerformStoreOp(msg))  storeOp(msg);
         } else if (msg.getContent().startsWith(Protocol.LOAD_TOKEN)) {
-            if (canPerformRemoveLoadOp(msg)) loadOp(msg, 0);
+            if (canPerformRemoveLoadOp(msg)) loadOp(msg);
         } else if (msg.getContent().startsWith(Protocol.REMOVE_TOKEN)) {
             if (canPerformRemoveLoadOp(msg))  removeOp(msg);
         } else if (msg.getContent().equals(Protocol.LIST_TOKEN)) {
@@ -202,7 +202,17 @@ public class Controller {
         });
     }
 
-    public static void loadOp(Message msg, Integer i) {
+    public static void loadOp(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+        fileIndexToBeLoad.put(fileName, 0);
+    }
+    public static void handleReload(Message msg) {
+        String fileName = msg.getContent().split(" ")[1];
+        fileIndexToBeLoad.put(fileName, fileIndexToBeLoad.get(fileName) + 1);
+        load(msg, fileIndexToBeLoad.get(fileName));
+    }
+
+    public static void load(Message msg, int i) {
         String fileName = msg.getContent().split(" ")[1];
         FileProperties fp = index.get(fileName);
         int fileSize = fp.getFileSize();
@@ -210,9 +220,6 @@ public class Controller {
         try {
             int dstorePort = fp.getDstores().get(i).getPort();
             msg.getSender().communicate(Protocol.LOAD_FROM_TOKEN + " " + dstorePort + " " + fileSize);
-
-            // in case dstore 0 fails, we will try with 1
-            currentLoadOps.put(msg, i+1);
         } catch (IndexOutOfBoundsException e) {
             System.err.println("Index larger than number of dstores");
             msg.getSender().communicate(Protocol.ERROR_LOAD_TOKEN);
@@ -282,10 +289,6 @@ public class Controller {
         }
 
         msg.getSender().communicate(Protocol.LIST_TOKEN + " " + fileList);
-    }
-
-    public static void handleReload(Message msg) {
-        loadOp(msg, currentLoadOps.get(msg));
     }
 
     public static void addDstore(NetworkController.DstoreThread dstore) {

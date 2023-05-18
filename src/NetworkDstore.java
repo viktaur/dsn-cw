@@ -56,6 +56,10 @@ public class NetworkDstore implements Runnable {
             while (true) {
                 try {
                     Socket client = ss.accept(); // this will block until new client connects
+
+                    // set socket timeout
+                    client.setSoTimeout(timeout);
+
                     BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                     PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
