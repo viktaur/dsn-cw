@@ -6,12 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/m1/file1.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/m1/file2.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/m1/file3.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ConnectionThread.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ConnectionThread.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/m3/file1.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NetworkDstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkDstore.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,6 +27,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="jar://$USER_HOME$/Downloads/comp2207-2223-client-1.0.0/client.jar!/Client.class" root0="SKIP_INSPECTION" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="uzniidb7" />
@@ -85,11 +86,11 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Controller">
+  <component name="RunManager" selected="Application.ClientMain">
     <configuration name="ClientMain" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="ClientMain" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="3000 10000" />
+      <option name="PROGRAM_PARAMETERS" value="3000 30000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -97,7 +98,7 @@
     <configuration name="Controller" type="Application" factoryName="Application" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Controller" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="3000 2 10000 10" />
+      <option name="PROGRAM_PARAMETERS" value="3000 2 30000 10" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -105,7 +106,7 @@
     <configuration name="Dstore1" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="5556 3000 10000 &quot;m1&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="5556 3000 30000 &quot;m1&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -113,7 +114,7 @@
     <configuration name="Dstore2" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="5557 3000 10000 &quot;m2&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="5557 3000 30000 &quot;m2&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -121,7 +122,7 @@
     <configuration name="Dstore3" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="dsn-cw" />
-      <option name="PROGRAM_PARAMETERS" value="5558 3000 10000 &quot;m3&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="5558 3000 30000 &quot;m3&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -162,8 +163,8 @@
     </configuration>
     <list>
       <item itemvalue="Application.Controller" />
-      <item itemvalue="Application.Dstore2" />
       <item itemvalue="Application.Dstore1" />
+      <item itemvalue="Application.Dstore2" />
       <item itemvalue="Application.Dstore3" />
       <item itemvalue="Application.ClientMain" />
       <item itemvalue="Compound.Dstores" />
@@ -210,7 +211,7 @@
       <workItem from="1684155210153" duration="13640000" />
       <workItem from="1684181252532" duration="5328000" />
       <workItem from="1684243418672" duration="31442000" />
-      <workItem from="1684327458020" duration="23863000" />
+      <workItem from="1684327458020" duration="27432000" />
     </task>
     <servers />
   </component>

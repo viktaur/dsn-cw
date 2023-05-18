@@ -147,11 +147,11 @@ public class NetworkDstore implements Runnable {
             String msg;
 
             try {
-                // it should only run once, for the STORE command
+                // it should only run once, for the STORE or LOAD command
                 while ((msg = in.readLine()) != null) {
 
-                    // we will ensure it's a STORE command
-                    if (msg.startsWith(Protocol.STORE_TOKEN)) {
+                    // we will ensure it's a STORE or LOAD command
+                    if ((msg.startsWith(Protocol.STORE_TOKEN)) || (msg.startsWith(Protocol.LOAD_TOKEN))) {
                         System.out.println("Received from Client: " + msg);
                         tasks.add(new Message(msg, this));
                         break;

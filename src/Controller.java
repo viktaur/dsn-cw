@@ -157,8 +157,6 @@ public class Controller {
             ports.append(dstore.getPort()).append(" ");
         }
 
-
-
         // send the ports of those dstores to the client
         msg.getSender().communicate(Protocol.STORE_TO_TOKEN + " " + ports);
 
@@ -226,6 +224,11 @@ public class Controller {
 
         index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
 
+        // tell all the dstores to remove a file
+        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
+            dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
+        }
+
         // this should be always equal to r, but just in case
         int nDstores = index.get(fileName).getDstores().size();
 
@@ -248,11 +251,6 @@ public class Controller {
                 latch.countDown();
                 ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
             });
-        }
-
-        // get all the dstores
-        for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
-            dstore.communicate(Protocol.REMOVE_TOKEN + " " + fileName);
         }
 
         ExecutorService watchdog = Executors.newSingleThreadExecutor();

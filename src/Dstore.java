@@ -111,12 +111,13 @@ public class Dstore {
                 } else {
                     System.err.println("File " + fileName + " does not exists");
                 }
-                    // We close the connection with the client after the load op
-                    try {
-                        msg.getSender().closeConnection();
-                    } catch (IOException e) {
-                        System.err.println("Could not close socket");
-                    }
+
+                // We close the connection with the client after the load op
+                try {
+                    msg.getSender().closeConnection();
+                } catch (IOException e) {
+                    System.err.println("Could not close socket");
+                }
             } catch (IOException e) {
                 System.err.println("Could not load file " + fileName);
                 e.printStackTrace();
@@ -183,6 +184,12 @@ public class Dstore {
                     // tell the controller that we're done
                     dstoreListener.fileStored(fileName);
 
+                    // we close the connection with the client after the store op
+                    try {
+                        msg.getSender().closeConnection();
+                    } catch (IOException e) {
+                        System.err.println("Could not close socket");
+                    }
                 } else {
                     System.out.println("File " + fileName + " already exists");
                 }
