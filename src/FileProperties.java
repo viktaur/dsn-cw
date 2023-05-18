@@ -27,7 +27,7 @@ public class FileProperties {
         return status;
     }
 
-    public void setStatus(FileStatus status) {
+    public synchronized void setStatus(FileStatus status) {
         this.status = status;
     }
 
@@ -35,11 +35,11 @@ public class FileProperties {
         return dstores;
     }
 
-    public boolean addDstore(NetworkController.DstoreThread dstore) {
+    public synchronized boolean addDstore(NetworkController.DstoreThread dstore) {
         return this.dstores.add(dstore);
     }
 
-    public boolean removeDstore(NetworkController.DstoreThread dstore) {
+    public synchronized boolean removeDstore(NetworkController.DstoreThread dstore) {
         return this.dstores.remove(dstore);
     }
 

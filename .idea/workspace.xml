@@ -5,11 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="27ad4d0d-0d9f-4e32-87cb-60289607273c" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/test/ClientMainTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/m2/file1.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/m2/file2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/downloads/file1.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/downloads/file2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/m1/file2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/m2/file3.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/m3/file2.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ConnectionThread.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/ConnectionThread.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/NetworkController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/NetworkController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FileProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileProperties.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/ControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/DstoreTest.java" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -86,7 +93,7 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Application.Controller">
     <configuration name="ClientMain" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="ClientMain" />
       <module name="dsn-cw" />
@@ -141,21 +148,31 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ControllerTest.handleMessageTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+    <configuration name="ClientMainTest.multipleClientsTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="dsn-cw" />
       <option name="PACKAGE_NAME" value="" />
-      <option name="MAIN_CLASS_NAME" value="ControllerTest" />
-      <option name="METHOD_NAME" value="handleMessageTest" />
+      <option name="MAIN_CLASS_NAME" value="ClientMainTest" />
+      <option name="METHOD_NAME" value="multipleClientsTest" />
       <option name="TEST_OBJECT" value="method" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ControllerTest.storeOpTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+    <configuration name="ClientMainTest.singleClientTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="dsn-cw" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="ClientMainTest" />
+      <option name="METHOD_NAME" value="singleClientTest" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ControllerTest.handleMessageTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="dsn-cw" />
       <option name="PACKAGE_NAME" value="" />
       <option name="MAIN_CLASS_NAME" value="ControllerTest" />
-      <option name="METHOD_NAME" value="storeOpTest" />
+      <option name="METHOD_NAME" value="handleMessageTest" />
       <option name="TEST_OBJECT" value="method" />
       <method v="2">
         <option name="Make" enabled="true" />
@@ -168,15 +185,17 @@
       <item itemvalue="Application.Dstore3" />
       <item itemvalue="Application.ClientMain" />
       <item itemvalue="Compound.Dstores" />
+      <item itemvalue="JUnit.ClientMainTest.multipleClientsTest" />
+      <item itemvalue="JUnit.ClientMainTest.singleClientTest" />
       <item itemvalue="JUnit.All in dsn-cw" />
       <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
-      <item itemvalue="JUnit.ControllerTest.storeOpTest" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Application.ClientMain" />
+        <item itemvalue="JUnit.ClientMainTest.multipleClientsTest" />
+        <item itemvalue="JUnit.ClientMainTest.singleClientTest" />
         <item itemvalue="JUnit.All in dsn-cw" />
-        <item itemvalue="JUnit.ControllerTest.storeOpTest" />
         <item itemvalue="JUnit.ControllerTest.handleMessageTest" />
       </list>
     </recent_temporary>
@@ -212,7 +231,7 @@
       <workItem from="1684181252532" duration="5328000" />
       <workItem from="1684243418672" duration="31442000" />
       <workItem from="1684327458020" duration="32436000" />
-      <workItem from="1684411206124" duration="8640000" />
+      <workItem from="1684411206124" duration="16374000" />
     </task>
     <servers />
   </component>
@@ -230,9 +249,32 @@
           <option name="timeStamp" value="9" />
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/Controller.java</url>
-          <line>88</line>
-          <option name="timeStamp" value="19" />
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>27</line>
+          <option name="timeStamp" value="28" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>92</line>
+          <option name="timeStamp" value="29" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>47</line>
+          <option name="timeStamp" value="30" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>109</line>
+          <option name="timeStamp" value="31" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/ClientMain.java</url>
+          <line>31</line>
+          <properties>
+            <option name="lambda-ordinal" value="-1" />
+          </properties>
+          <option name="timeStamp" value="32" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

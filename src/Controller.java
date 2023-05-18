@@ -122,7 +122,12 @@ public class Controller {
             return false;
         }
 
-        if (((index.get(fileName)) != null) && (!index.get(fileName).storeIsCompleted())) {
+        if (index.get(fileName) == null) {
+            msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
+            return false;
+        }
+
+        if (!index.get(fileName).storeIsCompleted()) {
             msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
             return false;
         }
@@ -174,15 +179,25 @@ public class Controller {
                     // we call this method to set a timeout for receiving the STORE_ACKs
                     dstore.startStoreTimeout(fileName, timeout);
                 } catch (TimeoutException e) {
-                    timeoutHappened.set(true);
+                    synchronized (timeoutHappened) {
+                        timeoutHappened.set(true);
+                    }
                     ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
                     ControllerLogger.getInstance().storeToDstoreFailed(fileName, dstore.getPort());
                     return;
                 }
 
-                index.get(fileName).addDstore(dstore);
-                latch.countDown();
-                ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
+                if (!timeoutHappened.get()) {
+                    synchronized (index) {
+                        index.get(fileName).addDstore(dstore);
+                    }
+
+                    synchronized (latch) {
+                        latch.countDown();
+                    }
+
+                    ControllerLogger.getInstance().storeToDstoreCompleted(fileName, dstore.getPort());
+                }
             });
         }
 
@@ -190,12 +205,16 @@ public class Controller {
         watchdog.submit(() -> {
             while (true) {
                 if (timeoutHappened.get()) {
-                    index.remove(fileName);
+                    synchronized (index) {
+                        index.remove(fileName);
+                    }
                     break;
                 }
 
                 if (latch.getCount() == 0) {
-                    index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
+                    synchronized (index) {
+                        index.get(fileName).setStatus(FileProperties.FileStatus.STORE_COMPLETE);
+                    }
                     msg.getSender().communicate(Protocol.STORE_COMPLETE_TOKEN);
                     ControllerLogger.getInstance().storeCompleted(fileName);
                     break;
@@ -243,11 +262,7 @@ public class Controller {
     public static void removeOp(Message msg) {
         String fileName = msg.getContent().split(" ")[1];
 
-        try {
-            index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
-        } catch (NullPointerException e) {
-            msg.getSender().communicate(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
-        }
+        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_IN_PROGRESS);
 
         // tell all the dstores to remove a file
         for (NetworkController.DstoreThread dstore : index.get(fileName).getDstores()) {
@@ -266,15 +281,21 @@ public class Controller {
                 try {
                     dstore.startRemoveTimeout(fileName, timeout);
                 } catch (TimeoutException e) {
-                    timeoutHappened.set(true);
+                    synchronized (timeoutHappened) {
+                        timeoutHappened.set(true);
+                    }
                     ControllerLogger.getInstance().timeoutExpiredWhileReading(dstore.getPort());
                     ControllerLogger.getInstance().removeFailed(fileName);
                     return;
                 }
 
-                index.get(fileName).removeDstore(dstore);
-                latch.countDown();
-                ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
+                if (!timeoutHappened.get()) {
+                    index.get(fileName).removeDstore(dstore);
+                    synchronized (latch) {
+                        latch.countDown();
+                    }
+                    ControllerLogger.getInstance().removeFromDstoreCompleted(fileName, dstore.getPort());
+                }
             });
         }
 
@@ -288,9 +309,16 @@ public class Controller {
                 }
 
                 if (latch.getCount() == 0) {
-                    index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
-                    msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN); // do we need to remove it from index?
-                    index.remove(fileName);
+                    synchronized (index) {
+                        index.get(fileName).setStatus(FileProperties.FileStatus.REMOVE_COMPLETE);
+                    }
+
+                    msg.getSender().communicate(Protocol.REMOVE_COMPLETE_TOKEN);
+
+                    synchronized (index) {
+                        index.remove(fileName);
+                    }
+
                     ControllerLogger.getInstance().removeComplete(fileName);
                     break;
                 }
@@ -312,8 +340,6 @@ public class Controller {
 
     public static void addDstore(NetworkController.DstoreThread dstore) {
         activeDstores.add(dstore);
-
-        // call rebalance here
     }
 
 
